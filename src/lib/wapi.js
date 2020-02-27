@@ -13,7 +13,7 @@ if (!window.Store||!window.Store.Msg) {
             let foundCount = 0;
             let neededObjects = [
                 { id: "Store", conditions: (module) => (module.Chat && module.Msg) ? module : null },
-                { id: "MediaCollection", conditions: (module) => (module.default && module.default.prototype && module.default.prototype.processFiles !== undefined) ? module.default : null },
+                { id: "MediaCollection", conditions: (module) => (module.default && module.default.prototype && (module.default.prototype.processFiles !== undefined||module.default.prototype.processAttachments !== undefined)) ? module.default : null },
                 { id: "MediaProcess", conditions: (module) => (module.BLOB) ? module : null },
                 { id: "Wap", conditions: (module) => (module.createGroup) ? module : null },
                 { id: "ServiceWorker", conditions: (module) => (module.default && module.default.killServiceWorker) ? module : null },
@@ -34,7 +34,10 @@ if (!window.Store||!window.Store.Msg) {
                 { id: "MsgKey", conditions: (module) => (module.default&&module.default.toString().includes('MsgKey error: id is already a MsgKey')) ? module.default : null },
                 { id: "Parser", conditions: (module) => (module.convertToTextWithoutSpecialEmojis) ? module.default : null },
                 { id: "Builders", conditions: (module) => (module.TemplateMessage && module.HydratedFourRowTemplate) ? module : null },
+                { id: "Me", conditions: (module) => (module.PLATFORMS && module.Conn) ? module.default : null },
                 { id: "Identity", conditions: (module) => (module.queryIdentity && module.updateIdentity) ? module : null },
+                { id: "MyStatus", conditions: (module) => (module.getStatus && module.setMyStatus) ? module : null },
+                { id: "GroupActions", conditions: (module) => (module.sendExitGroup && module.localExitGroup) ? module : null },
                 { id: "Features", conditions: (module) => (module.FEATURE_CHANGE_EVENT && module.features) ? module : null },
                 { id: "MessageUtils", conditions: (module) => (module.storeMessages && module.appendMessage) ? module : null },
                 { id: "WebMessageInfo", conditions: (module) => (module.WebMessageInfo && module.WebFeatures) ? module.WebMessageInfo : null },
@@ -80,6 +83,8 @@ if (!window.Store||!window.Store.Msg) {
                         window.Store.sendMessage = function (e) {
                             return window.Store.SendTextMsgToChat(this, ...arguments);
                         }
+
+                        window.Store.MediaCollection.prototype.processFiles = window.Store.MediaCollection.prototype.processFiles || window.Store.MediaCollection.prototype.processAttachments;
                         return window.Store;
                     }
                 }
@@ -207,10 +212,15 @@ window.WAPI.createGroup = function (name, contactsId) {
     return window.Store.WapQuery.createGroup(name, contactsId);
 };
 
+/**
+ * Sends the command for your device to leave a group.
+ * @param groupId stirng, the is for the group.
+ * returns Promise<void>
+ */
 window.WAPI.leaveGroup = function (groupId) {
     groupId = typeof groupId == "string" ? groupId : groupId._serialized;
     var group = WAPI.getChat(groupId);
-    return group.sendExit()
+    return Store.GroupActions.sendExitGroup(group)
 };
 
 
@@ -627,6 +637,14 @@ window.WAPI.getGroupAdmins = async function (id, done) {
     if (done !== undefined) done(output);
     return output;
 };
+
+/**
+ * Returns an object with all of your host device details
+ */
+window.WAPI.getMe = function(){
+    const me= Store.Me.serialize();
+    return me;
+}
 
 /**
  * Gets object representing the logged in user
@@ -1441,13 +1459,29 @@ window.WAPI.sendImage = function (imgBase64, chatid, filename, caption, done) {
     // create new chat
     return Store.Chat.find(idUser).then((chat) => {
         var mediaBlob = window.WAPI.base64ImageToFile(imgBase64, filename);
-        var mc = new Store.MediaCollection(chat);
-        mc.processFiles([mediaBlob], chat, 1).then(() => {
+        window.WAPI.procFiles(chat,mediaBlob).then(mc => {
             var media = mc.models[0];
             media.sendToChat(chat, { caption: caption });
             if (done !== undefined) done(true);
         });
     });
+}
+
+/**
+ * This function sts the profile name of the number. For future reference, setProfilePic is for profile pic,
+ * @param newName - string the new name to set as profile name
+ */
+window.WAPI.setMyName = async function (newName) {
+    if(!Store.Versions.default[11].BinaryProtocol) Store.Versions.default[11].BinaryProtocol=new Store.bp(11);
+    return await Store.Versions.default[11].setPushname(newName);
+}
+
+/**
+* Update your status
+*   @param newStatus string new Status
+*/
+window.WAPI.setMyStatus = function (newStatus) {
+    return Store.MyStatus.setMyStatus(newStatus)
 }
 
 window.WAPI.sendVideoAsGif = function (imgBase64, chatid, filename, caption, done) {
@@ -1457,7 +1491,7 @@ window.WAPI.sendVideoAsGif = function (imgBase64, chatid, filename, caption, don
     return Store.Chat.find(idUser).then((chat) => {
         var mediaBlob = window.WAPI.base64ImageToFile(imgBase64, filename);
         var mc = new Store.MediaCollection(chat);
-        mc.processFiles([mediaBlob], chat, 1).then(() => {
+        window.WAPI.procFiles(chat,mediaBlob).then(mc => {
             var media = mc.models[0];
             media.mediaPrep._mediaData.isGif = true;
             media.mediaPrep._mediaData.gifAttribution = 1;
@@ -1486,6 +1520,15 @@ window.WAPI.getBusinessProfilesProducts = function (id, done) {
     })
 };
 
+
+window.WAPI.procFiles= async function(chat, blobs) {
+    if (!Array.isArray(blobs)) {
+        blobs = [blobs];
+    }
+    var mc = new Store.MediaCollection(chat);
+    await mc.processFiles((Debug.VERSION === '0.4.613')?blobs:blobs.map(blob=>{return{file:blob}}) , chat, 1);
+    return mc
+}
 /**
  * Sends product with image to chat
  * @param imgBase64 Base64 image data
@@ -1521,8 +1564,9 @@ window.WAPI.sendImageWithProduct = function (imgBase64, chatid, caption, bizNumb
 
             return Store.Chat.find(idUser).then((chat) => {
                 var mediaBlob = window.WAPI.base64ImageToFile(imgBase64, filename);
-                var mc = new Store.MediaCollection(chat);
-                mc.processFiles([mediaBlob], chat, 1).then(() => {
+                // var mc = new Store.MediaCollection(chat);
+                // mc.processFiles([mediaBlob], chat, 1)
+                window.WAPI.procFiles(chat,mediaBlob).then(mc => {
                     var media = mc.models[0];
                     Object.entries(temp.productMsgOptions).map(([k, v]) => media.mediaPrep._mediaData[k] = v)
                     media.mediaPrep.sendToChat(chat, temp);

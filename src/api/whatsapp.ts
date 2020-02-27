@@ -1,4 +1,7 @@
 import { Page } from 'puppeteer';
+/**
+ * @private
+ */
 import { ExposedFn } from './functions/exposed.enum';
 import { Chat, LiveLocationChangedEvent } from './model/chat';
 import { Contact } from './model/contact';
@@ -34,6 +37,8 @@ declare module WAPI {
   const forwardMessages: (to: string, messages: string | (string | Message)[], skipMyMessages: boolean) => any;
   const sendLocation: (to: string, lat: any, lng: any, loc: string) => void;
   const addParticipant: (groupId: string, contactId: string) => void;
+  const setMyName: (newName: string) => void;
+  const setMyStatus: (newStatus: string) => void;
   const removeParticipant: (groupId: string, contactId: string) => void;
   const promoteParticipant: (groupId: string, contactId: string) => void;
   const demoteParticipant: (groupId: string, contactId: string) => void;
@@ -68,6 +73,7 @@ declare module WAPI {
   ) => void;
   const getAllContacts: () => Contact[];
   const getWAVersion: () => String;
+  const getMe: () => any;
   const getAllUnreadMessages: () => any;
   const getAllChatsWithMessages: (withNewMessageOnly?: boolean) => any;
   const getAllChats: () => any;
@@ -78,6 +84,7 @@ declare module WAPI {
   const getAllNewMessages: () => any;
   const getAllGroups: () => Chat[];
   const getGroupParticipantIDs: (groupId: string) => Id[];
+  const leaveGroup: (groupId: string) => any;
   const getContact: (contactId: string) => Contact;
   const checkNumberStatus: (contactId: string) => any;
   const getChatById: (contactId: string) => Chat;
@@ -106,6 +113,10 @@ declare module WAPI {
 }
 
 export class Whatsapp {
+
+  /**
+   * @param page: Page puppeteer page running web.whatsapp.com
+   */
   constructor(public page: Page) {
     this.page = page;
   }
@@ -146,6 +157,28 @@ export class Whatsapp {
         WAPI.onStateChanged(s => window['onStateChanged'](s.state))
       }));
   }
+
+  /**
+   * set your about me
+   * @param newStatus String new profile status
+   */
+  public async setMyStatus(newStatus: string) {
+    return await this.page.evaluate(
+      ({newStatus}) => {WAPI.setMyStatus(newStatus)},
+      {newStatus}
+      )
+  }
+
+  /**
+   * Set your profile name
+   * @param newName String new name to set for your profile
+   */
+   public async setMyName(newName: string) {
+     return await this.page.evaluate(
+       ({newName}) => {WAPI.setMyName(newName)},
+       {newName}
+       )
+   }
 
   /**
    * Returns the connecction state
@@ -414,6 +447,12 @@ export class Whatsapp {
     }
   }
 
+/**
+ * Returns an object with all of your host device details
+ */
+  public async getMe(){
+    return await this.page.evaluate(() => WAPI.getMe());
+  }
 
 
   /**
@@ -563,6 +602,17 @@ export class Whatsapp {
   public async getGroupMembersId(groupId: string) {
     return await this.page.evaluate(
       groupId => WAPI.getGroupParticipantIDs(groupId),
+      groupId
+    );
+  }
+
+  /**
+   * Removes the host device from the group
+   * @param groupId group id
+   */
+  public async leaveGroup(groupId: string) {
+    return await this.page.evaluate(
+      groupId => WAPI.leaveGroup(groupId),
       groupId
     );
   }
