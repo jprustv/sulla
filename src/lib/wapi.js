@@ -327,6 +327,29 @@ window.WAPI.getAllGroups = function (done) {
 };
 
 /**
+ * Sets the chat state
+ * 
+ * @param {0|1|2} chatState The state you want to set for the chat. Can be TYPING (1), RECRDING (2) or PAUSED (3);
+ * returns {boolean}
+ */
+window.WAPI.sendChatstate = async function (state, chatId) {
+    switch(state) {
+        case 0:
+            await window.Store.Wap.sendChatstateComposing(chatId);
+            break;
+        case 1:
+            await window.Store.Wap.sendChatstateRecording(chatId);
+            break;
+        case 2:
+            await window.Store.Wap.sendChatstatePaused(chatId);
+            break;
+        default:
+            return false
+    }
+    return true;
+};
+
+/**
  * Fetches chat object from store by ID
  *
  * @param id ID of chat
@@ -339,6 +362,15 @@ window.WAPI.getChat = function (id, done) {
     if (found) found.sendMessage = (found.sendMessage) ? found.sendMessage : function () { return window.Store.sendMessage.apply(this, arguments); };
     if (done !== undefined) done(found);
     return found;
+}
+
+/**
+ * Get your status
+ * @param {string} to '000000000000@c.us'
+ * returns: {string,string} and string -"Hi, I am using WhatsApp"
+ */
+window.WAPI.getStatus = async (id) => {
+return await Store.MyStatus.getStatus(id)
 }
 
 window.WAPI.getChatByName = function (name, done) {
@@ -1438,6 +1470,21 @@ window.WAPI.onParticipantsChanged = function (groupId, callback) {
     return true;
 }
 
+
+/**
+ * Registers a callback that fires when your host phone is added to a group.
+ * @param callback - function - Callback function to be called when a message acknowledgement changes. The callback returns 3 variables
+ * @returns {boolean}
+ */
+window.WAPI.onAddedToGroup = function(callback){
+    Store.Chat.on('add',(chatObject)=>{
+        if(chatObject&&chatObject.isGroup){
+            callback(chatObject)
+        };
+    });
+    return true;
+}
+
 /**
  * Reads buffered new messages.
  * @param done - function - Callback function to be called contained the buffered messages.
@@ -1664,7 +1711,7 @@ window.WAPI.getNewMessageId = function (chatId) {
  */
 window.WAPI.simulateTyping = async function (chatId, on) {
     if (on) await Store.WapQuery.sendChatstateComposing(chatId)
-    else await Store.WapQuery.sendChatstateComposing(chatId)
+    else await Store.WapQuery.sendChatstatePaused(chatId)
 };
 
 /**
@@ -1934,13 +1981,10 @@ return new Promise(function(resolve, reject) {
 window.WAPI.reply = async function (chatId, body, quotedMsg) {
     if (typeof quotedMsg !== "object") quotedMsg = Store.Msg.get(quotedMsg)
     var chat = Store.Chat.get(chatId);
-    let extras = {};
-    if(chat.isGroup){
-        extras = {
-            quotedParticipant: quotedMsg.author,
+    let extras = {
+            quotedParticipant: quotedMsg.author || quotedMsg.from,
             quotedStanzaID:quotedMsg.id.id
-        }
-    }
+        };
     var tempMsg = Object.create(chat.msgs.filter(msg => msg.__x_isSentByMe)[0]);
     var newId = window.WAPI.getNewMessageId(chatId);
     var extend = {

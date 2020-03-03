@@ -3,7 +3,7 @@ import { Page } from 'puppeteer';
  * @private
  */
 import { ExposedFn } from './functions/exposed.enum';
-import { Chat, LiveLocationChangedEvent } from './model/chat';
+import { Chat, LiveLocationChangedEvent, ChatState } from './model/chat';
 import { Contact } from './model/contact';
 import { Message } from './model/message';
 import { Id } from './model/id';
@@ -28,10 +28,12 @@ declare module WAPI {
   const waitNewMessages: (rmCallback: boolean, callback: Function) => void;
   const addAllNewMessagesListener: (callback: Function) => void;
   const onStateChanged: (callback: Function) => void;
+  const onAddedToGroup: (callback: Function) => any;
   const onParticipantsChanged: (groupId: string, callback: Function) => any;
   const onLiveLocation: (chatId: string, callback: Function) => any;
   const sendMessage: (to: string, content: string) => void;
   const sendMessageToID: (to: string, content: string) => void;
+  const setChatState: (chatState: ChatState, chatId: string) => void;
   const reply: (to: string, content: string, quotedMsg: string | Message) => void;
   const getGeneratedUserAgent: (userAgent?: string) => string;
   const forwardMessages: (to: string, messages: string | (string | Message)[], skipMyMessages: boolean) => any;
@@ -39,6 +41,8 @@ declare module WAPI {
   const addParticipant: (groupId: string, contactId: string) => void;
   const setMyName: (newName: string) => void;
   const setMyStatus: (newStatus: string) => void;
+  const getStatus: (contactId: string) => void;
+  const getGroupAdmins: (groupId: string) => Contact[];
   const removeParticipant: (groupId: string, contactId: string) => void;
   const promoteParticipant: (groupId: string, contactId: string) => void;
   const demoteParticipant: (groupId: string, contactId: string) => void;
@@ -115,7 +119,7 @@ declare module WAPI {
 export class Whatsapp {
 
   /**
-   * @param page: Page puppeteer page running web.whatsapp.com
+   * @param page [Page] [Puppeteer Page]{@link https://pptr.dev/#?product=Puppeteer&version=v2.1.1&show=api-class-page} running web.whatsapp.com
    */
   constructor(public page: Page) {
     this.page = page;
@@ -179,6 +183,19 @@ export class Whatsapp {
        {newName}
        )
    }
+
+   /**
+    * Sets the chat state
+    * @param {ChatState|0|1|2} chatState The state you want to set for the chat. Can be TYPING (0), RECRDING (1) or PAUSED (2).
+    * @param {String} chatId
+    */
+   public async setChatState(chatState: ChatState, chatId: String) {
+    return await this.page.evaluate(
+      ({chatState, chatId}) => {WAPI.setChatState(chatState, chatId)},
+      //@ts-ignore
+      {chatState, chatId}
+      )
+  }
 
   /**
    * Returns the connecction state
@@ -260,6 +277,27 @@ export class Whatsapp {
         { groupId, funcName}
       ));
   }
+
+
+  /**
+   * Fires callback with Chat object every time the host phone is added to a group.
+   * @param to callback
+   * @returns Observable stream of Chats
+   */
+  public onAddedToGroup(fn: (chat: Chat) => void) {
+    const funcName = "onAddedToGroup";
+    return this.page.exposeFunction(funcName, (chat: Chat) =>
+      fn(chat)
+    )
+      .then(_ => this.page.evaluate(
+        (funcName ) => {
+        //@ts-ignore
+          WAPI.onAddedToGroup(window[funcName]);
+        },
+        {funcName}
+      ));
+  }
+
 
   /**
    * Sends a text message to given chat
@@ -680,6 +718,18 @@ export class Whatsapp {
 
 
   /**
+   * Sets a chat status to seen. Marks all messages as ack: 3
+   * @param chatId chat id: xxxxx@us.c
+   */
+  public async sendSeen(chatId: string) {
+    return await this.page.evaluate(
+     chatId => WAPI.sendSeen(chatId),
+      chatId
+    );
+  }
+
+
+  /**
     * Load more messages in chat object from server. Use this in a while loop
    * @param contactId
    * @returns contact detial as promise
@@ -690,6 +740,19 @@ export class Whatsapp {
       contactId
     );
   }
+
+/**
+ * Get the status of a contact
+ * @param contactId {string} to '000000000000@c.us'
+ * returns: {id: string,status: string}
+ */
+
+public async getStatus(contactId: string) {
+  return await this.page.evaluate(
+    contactId => WAPI.getStatus(contactId),
+    contactId
+  );
+}
 
   /**
     * Load all messages in chat object from server.
@@ -866,6 +929,17 @@ export class Whatsapp {
     return await this.page.evaluate(
       ({ idGroup, idParticipant }) => WAPI.demoteParticipant(idGroup, idParticipant),
       { idGroup, idParticipant }
+    );
+  }
+
+  /**
+  * Get Admins of a Group
+  * @param {*} idGroup '0000000000-00000000@g.us'
+  */
+  public async getGroupAdmins(idGroup: string) {
+    return await this.page.evaluate(
+      (idGroup) => WAPI.getGroupAdmins(idGroup),
+      idGroup
     );
   }
 }
