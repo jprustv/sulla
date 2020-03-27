@@ -50,6 +50,7 @@ declare module WAPI {
   const onLiveLocation: (chatId: string, callback: Function) => any;
   const sendMessage: (to: string, content: string) => void;
   const sendMessageToID: (to: string, content: string) => void;
+  const sendMessageWithMentions: (to: string, content: string) => string;
   const setChatState: (chatState: ChatState, chatId: string) => void;
   const reply: (to: string, content: string, quotedMsg: string | Message) => void;
   const getGeneratedUserAgent: (userAgent?: string) => string;
@@ -249,7 +250,7 @@ export class Whatsapp {
   public async forceRefocus() {
     //255 is the address of 'use here'
     //@ts-ignore
-    const useHere: string = await this.page.evaluate(() => { return window.l10n.localeStrings[window.l10n._locale.l][0][255] });
+    const useHere: string = await this.page.evaluate(() => { return window.l10n.localeStrings[window.l10n._locale.l][0][window.l10n.localeStrings['en']?.[0].findIndex((x:string)=>x.toLowerCase()=='use here') || 257] });
     await this.page.waitForFunction(
       `[...document.querySelectorAll("div[role=button")].find(e=>{return e.innerHTML.toLowerCase()==="${useHere.toLowerCase()}"})`,
       { timeout: 0 }
@@ -304,17 +305,16 @@ export class Whatsapp {
    * @param to callback
    * @returns Observable stream of Chats
    */
-  public onAddedToGroup(fn: (chat: Chat) => void) {
+  public onAddedToGroup(fn: (chat: Chat) => any) {
     const funcName = "onAddedToGroup";
-    return this.page.exposeFunction(funcName, (chat: Chat) =>
+    return this.page.exposeFunction(funcName, (chat: any) =>
       fn(chat)
     )
       .then(_ => this.page.evaluate(
-        (funcName ) => {
+        () => {
         //@ts-ignore
-          WAPI.onAddedToGroup(window[funcName]);
-        },
-        {funcName}
+          WAPI.onAddedToGroup(window.onAddedToGroup);
+        }
       ));
   }
 
@@ -329,6 +329,25 @@ export class Whatsapp {
       ({ to, content }) => {
         WAPI.sendSeen(to);
         WAPI.sendMessageToID(to, content);
+      },
+      { to, content }
+    );
+  }
+
+
+  /**
+   * Sends a text message to given chat that includes mentions.
+   * In order to use this method correctly you will need to send the text like this:
+   * "@4474747474747 how are you?"
+   * Basically, add a @ symbol before the number of the contact you want to mention.
+   * @param to chat id: xxxxx@us.c
+   * @param content text message
+   */
+  public async sendTextWithMentions(to: string, content: string) {
+    return await this.page.evaluate(
+      ({ to, content }) => {
+        WAPI.sendSeen(to);
+        return WAPI.sendMessageWithMentions(to, content);
       },
       { to, content }
     );

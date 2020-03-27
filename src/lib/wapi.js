@@ -87,14 +87,16 @@ if (!window.Store||!window.Store.Msg) {
                         window.Store.sendMessage = function (e) {
                             return window.Store.SendTextMsgToChat(this, ...arguments);
                         }
-                        window.Store.MediaCollection.prototype.processFiles = window.Store.MediaCollection.prototype.processFiles || window.Store.MediaCollection.prototype.processAttachments;
+                        if(window.Store.MediaCollection) window.Store.MediaCollection.prototype.processFiles = window.Store.MediaCollection.prototype.processFiles || window.Store.MediaCollection.prototype.processAttachments;
                         return window.Store;
                     }
                 }
             }
         }
         const parasite = `parasite${Date.now()}`
-        webpackJsonp([], { [parasite]: (x, y, z) => getStore(z) }, [parasite]);
+        // webpackJsonp([], { [parasite]: (x, y, z) => getStore(z) }, [parasite]);
+        if (typeof webpackJsonp === 'function') webpackJsonp([], {[parasite]: (x, y, z) => getStore(z)}, [parasite]); 
+        else webpackJsonp.push([[parasite],{[parasite]: (x, y, z) => getStore(z)},[[parasite]]]);
     })();
 }
 
@@ -888,6 +890,33 @@ window.WAPI.sendMessageToID = function (id, message, done) {
     }
     if (done !== undefined) done(false);
     return false;
+}
+
+
+window.WAPI.sendMessageWithMentions = async function (ch, body) {
+    var chat = ch.id ? ch : Store.Chat.get(ch);
+    var chatId = chat.id._serialized;
+    var msgIveSent = chat.msgs.filter(msg => msg.__x_isSentByMe)[0];
+    if(!msgIveSent) return chat.sendMessage(body);
+    var tempMsg = Object.create(msgIveSent);
+    var newId = window.WAPI.getNewMessageId(chatId);
+    var mentionedJidList = body.match(/@(\d*)/g).map(x=>new Store.WidFactory.createUserWid(x.replace("@",""))) || undefined;
+    var extend = {
+        ack: 0,
+        id: newId,
+        local: !0,
+        self: "out",
+        t: parseInt(new Date().getTime() / 1000),
+        to: new Store.WidFactory.createWid(chatId),
+        isNewMsg: !0,
+        type: "chat",
+        body,
+        quotedMsg:null,
+        mentionedJidList
+    };
+    Object.assign(tempMsg, extend);
+    await Store.addAndSendMsgToChat(chat, tempMsg)
+    return newId._serialized;
 }
 
 window.WAPI.sendMessageReturnId = async function (ch, body) {
@@ -1760,7 +1789,7 @@ window.WAPI.sendLocation = async function (chatId, lat, lng, loc) {
         local: !0,
         self: "out",
         t: parseInt(new Date().getTime() / 1000),
-        to: new Store.WidFactory.createWid(chatId),
+        to: chatId,
         isNewMsg: !0,
         type: "location",
         lat,
@@ -1778,7 +1807,9 @@ window.WAPI.sendLocation = async function (chatId, lat, lng, loc) {
         height:undefined,
         width:undefined,
         ephemeralStartTimestamp:undefined,
-        mediaData:undefined
+        body:undefined,
+        mediaData:undefined,
+        isQuotedMsgAvailable: false
     };
     Object.assign(tempMsg, extend);
     return await Promise.all(Store.addAndSendMsgToChat(chat, tempMsg))

@@ -1,6 +1,6 @@
 {
   "name": "@jprustv/sulla-hotfix",
-  "version": "1.8.19",
+  "version": "1.8.23",
   "description": "Javascript whatsapp framework",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -59,11 +59,11 @@
     "line-reader": "^0.4.0",
     "marked": "^0.8.0",
     "precise-commits": "^1.0.2",
-    "prettier": "^1.18.2",
+    "prettier": "^2.0.1",
     "release-it": "^13.0.1",
     "ts-node": "^8.4.1",
     "tsc-watch": "^4.0.0",
-    "typedoc": "^0.16.10",
+    "typedoc": "^0.17.0",
     "typescript": "^3.6.4"
   },
   "dependencies": {
