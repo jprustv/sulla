@@ -482,20 +482,12 @@ export class Whatsapp {
    *
    */
   public async sendMessageWithThumb(
-<<<<<<< HEAD
-    thumb:string,
-    url:string,
-    title:string,
-    description:string,
-    chatId:string){
-=======
     thumb: string,
     url: string,
     title: string,
     description: string,
     text: string,
     chatId: string) {
->>>>>>> d001c8c02c4cdee43e0e3db4a71499f7d7478205
     return await this.page.evaluate(
       ({ thumb,
         url,
@@ -1478,9 +1470,6 @@ public async getStatus(contactId: string) {
   }
 
   /**
-<<<<<<< HEAD
-   * This function takes an image and sends it as a sticker to the recipient. This is helpful for sending semi-ephemeral things like QR codes.
-=======
    * Sends a sticker from a given URL
    * @param to: The recipient id.
    * @param url: The url of the image
@@ -1498,7 +1487,6 @@ public async getStatus(contactId: string) {
 
   /**
    * This function takes an image and sends it as a sticker to the recipient. This is helpful for sending semi-ephemeral things like QR codes.
->>>>>>> d001c8c02c4cdee43e0e3db4a71499f7d7478205
    * The advantage is that it will not show up in the recipients gallery. This function automatiicaly converts images to the required webp format.
    * @param to: The recipient id.
    * @param b64: This is the base64 string formatted with data URI. You can also send a plain base64 string but it may result in an error as the function will not be able to determine the filetype before sending.
