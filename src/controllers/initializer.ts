@@ -1,34 +1,61 @@
 import { Whatsapp } from '../api/whatsapp';
 import {ConfigObject} from '../api/model/index';
 import * as path from 'path';
-import { isAuthenticated, isInsideChat, retrieveQR, randomMouseMovements } from './auth';
+import { isAuthenticated, isInsideChat, retrieveQR } from './auth';
 import { initWhatsapp, injectApi } from './browser';
 import {Spin} from './events'
+import axios from 'axios';
+const updateNotifier = require('update-notifier');
+
 var uniq = require('lodash.uniq');
 
 let shouldLoop = true;
 const fs = require('fs');
-var pjson = require('../../package.json');
+var pkg = require('../../package.json');
 const timeout = ms => {
   return new Promise(resolve => setTimeout(resolve, ms, 'timeout'));
 }
-let waPage;
 let qrTimeout;
 
 /**
- * Should be called to initialize whatsapp client
- * @param sessionId Custom id for the session, every phone should have it's own sessionId.
+ * Should be called to initialize whatsapp client.
+ * *Note* You can send all params as a single object with the new [ConfigObject](https://open-wa.github.io/wa-automate-nodejs/interfaces/configobject.html) that includes both [sessionId](https://open-wa.github.io/wa-automate-nodejs/interfaces/configobject.html#sessionId) and [customUseragent](ttps://open-wa.github.io/wa-automate-nodejs/interfaces/configobject.html#customUseragent).
+ * 
+ * e.g
+ * 
+ * ```javascript
+ * create({
+ * sessionId: 'main',
+ * customUserAgent: ' 'WhatsApp/2.16.352 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Safari/605.1.15',
+ * blockCrashLogs true,
+ * ...
+ * })....
+ * ```
+ * @param sessionId [string | ConfigObject ]Custom id for the session, every phone should have it's own sessionId. THIS CAN BE THE CONFIG OBJECT INSTEAD
  * @param config The extended custom configuration
  * @param customUserAgent A custom user agent to set on the browser page.
  */
-export async function create(sessionId?: string, config?:ConfigObject, customUserAgent?:string) {
+//export async function create(sessionId?: string, config?:ConfigObject, customUserAgent?:string) {
+  //@ts-ignore
+  export async function create(sessionId?: any | ConfigObject, config?:ConfigObject, customUserAgent?:string) : Promise<Whatsapp> {
+    let waPage = undefined;
+    const notifier = await updateNotifier({
+      pkg,
+      updateCheckInterval: 0
+    });
+    notifier.notify();
+    console.log("%c         \u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2557   \u2588\u2588\u2557      \u2588\u2588\u2557    \u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2557         \r\n        \u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2551      \u2588\u2588\u2551    \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557        \r\n        \u2588\u2588\u2551\u2588\u2588\u2557\u2588\u2588\u2551\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2554\u2588\u2588\u2557 \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551 \u2588\u2557 \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551        \r\n        \u2588\u2588\u2551\u2588\u2588\u2551\u2588\u2588\u2551\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u255D \u2588\u2588\u2554\u2550\u2550\u255D  \u2588\u2588\u2551\u255A\u2588\u2588\u2557\u2588\u2588\u2551\u255A\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2551\u2588\u2588\u2588\u2557\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2551        \r\n        \u255A\u2588\u2551\u2588\u2588\u2588\u2588\u2554\u255D\u255A\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2551     \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551 \u255A\u2588\u2588\u2588\u2588\u2551      \u255A\u2588\u2588\u2588\u2554\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2551  \u2588\u2588\u2551        \r\n         \u255A\u255D\u255A\u2550\u2550\u2550\u255D  \u255A\u2550\u2550\u2550\u2550\u2550\u255D \u255A\u2550\u255D     \u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u255D  \u255A\u2550\u2550\u2550\u255D       \u255A\u2550\u2550\u255D\u255A\u2550\u2550\u255D \u255A\u2550\u255D  \u255A\u2550\u255D        \r\n                                                                                    \r\n        \u2588\u2588\u2557    \u2588\u2588\u2557\u2588\u2588\u2557  \u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557          \r\n        \u2588\u2588\u2551    \u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u255A\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255D\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557         \r\n        \u2588\u2588\u2551 \u2588\u2557 \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D         \r\n        \u2588\u2588\u2551\u2588\u2588\u2588\u2557\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2551   \u2588\u2588\u2551   \u255A\u2550\u2550\u2550\u2550\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u255D \u2588\u2588\u2554\u2550\u2550\u2550\u255D          \r\n        \u255A\u2588\u2588\u2588\u2554\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551              \r\n         \u255A\u2550\u2550\u255D\u255A\u2550\u2550\u255D \u255A\u2550\u255D  \u255A\u2550\u255D\u255A\u2550\u255D  \u255A\u2550\u255D   \u255A\u2550\u255D   \u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u255D  \u255A\u2550\u255D\u255A\u2550\u255D     \u255A\u2550\u255D              \r\n                                                                                    \r\n     \u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557   \u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2557   \u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \r\n    \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551\u255A\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255D\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u255A\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255D\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\r\n    \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2554\u2588\u2588\u2588\u2588\u2554\u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\r\n    \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2551\u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551\u255A\u2588\u2588\u2554\u255D\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\r\n    \u2588\u2588\u2551  \u2588\u2588\u2551\u255A\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D   \u2588\u2588\u2551   \u255A\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2551 \u255A\u2550\u255D \u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551   \u2588\u2588\u2551   \u255A\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2551  \u2588\u2588\u2551\r\n    \u255A\u2550\u255D  \u255A\u2550\u255D \u255A\u2550\u2550\u2550\u2550\u2550\u255D    \u255A\u2550\u255D    \u255A\u2550\u2550\u2550\u2550\u2550\u255D \u255A\u2550\u255D     \u255A\u2550\u255D\u255A\u2550\u255D  \u255A\u2550\u255D   \u255A\u2550\u255D    \u255A\u2550\u2550\u2550\u2550\u2550\u255D \u255A\u2550\u255D  \u255A\u2550\u255D\r\n                                                                                    ", 'background: #000; color: #F0F; padding: 6px;');
+  
+  if(typeof sessionId === 'object' && (sessionId as ConfigObject)) {
+    config = sessionId;
+    sessionId = config.sessionId;
+    customUserAgent = config.customUserAgent;
+    }
+    if (!sessionId) sessionId = 'session';
   const spinner = new Spin(sessionId,'STARTUP');
   try{
-
-  waPage = undefined;
-  qrTimeout = undefined;
-  shouldLoop = true;
-  if (!sessionId) sessionId = 'session';
+    qrTimeout = undefined;
+    shouldLoop = true;
   spinner.start('Initializing whatsapp');
   waPage = await initWhatsapp(sessionId, config, customUserAgent);
   spinner.succeed();
@@ -36,7 +63,8 @@ export async function create(sessionId?: string, config?:ConfigObject, customUse
 
   const PAGE_UA =  await waPage.evaluate('navigator.userAgent');
   const BROWSER_VERSION = await waPage.browser().version();
-  const SULLA_HOTFIX_VERSION = pjson.version;
+
+  const WA_AUTOMATE_VERSION = `${pkg.version}${notifier.update ? ` UPDATE AVAILABLE: ${notifier.update.latest}` : ''}`;
   //@ts-ignore
   const WA_VERSION = await waPage.evaluate(()=>window.Debug?window.Debug.VERSION:'I think you have been TOS_BLOCKed')
   //@ts-ignore
@@ -44,12 +72,12 @@ export async function create(sessionId?: string, config?:ConfigObject, customUse
   const debugInfo = {
     WA_VERSION,
     PAGE_UA,
-    SULLA_HOTFIX_VERSION,
+    WA_AUTOMATE_VERSION,
     BROWSER_VERSION,
   };
   spinner.emit(debugInfo,"DebugInfo");
-  console.log('Debug Info', debugInfo);
-  
+  console.table(debugInfo);
+
   if(canInjectEarly) {
     spinner.start('Injecting api');
     waPage = await injectApi(waPage);
@@ -89,7 +117,7 @@ export async function create(sessionId?: string, config?:ConfigObject, customUse
     const result = await Promise.race(race);
     if(result=='timeout') {
       console.log('Session timed out. Shutting down')
-      await kill();
+      await kill(waPage);
       throw new Error('QR Timeout');
       
     }
@@ -128,7 +156,11 @@ spinner.emit(sessionData,"sessionData");
   fs.writeFile(sessionjsonpath, JSON.stringify(sessionData), (err) => {
   if (err) {  console.error(err);  return; };
 });
-
+if(config?.restartOnCrash) waPage.on('error', async error => {
+  console.error('Page Crashed! Restarting...', error);
+  await kill(waPage);
+  await create(sessionId,config,customUserAgent).then(config.restartOnCrash);
+});
 /**
  * now test to see if all features are functioning as expected
  * 1. Open wapi.js as text file
@@ -136,35 +168,48 @@ spinner.emit(sessionData,"sessionData");
  * 3. remove brackets
  * 4. go through each and test if exists.
 */
-const BROKEN_METHODS = await waPage.evaluate((checkList)=>{
+const BROKEN_METHODS = config?.skipBrokenMethodsCheck ? [] : await waPage.evaluate((checkList)=>{
   return checkList.filter(check=> {
-    return eval(check)?false:true;
+    try{
+      return eval(check)?false:true;
+    } catch(error) {
+      return true;
+    }
   })
 },uniq(fs.readFileSync(path.join(__dirname, '../lib', 'wapi.js'), 'utf8').match(/(Store[.\w]*)\(/g).map((x:string)=>x.replace("(",""))));
-//@ts-ignore
-const LANG_CHECK = await waPage.evaluate(()=>{if(window.l10n.localeStrings['en'])return window.l10n.localeStrings['en'][0].findIndex((x)=>x.toLowerCase()=='use here')==257;else return false;})
-if(BROKEN_METHODS.length>0) console.log("!!!!!BROKEN METHODS DETECTED!!!!\n\n\nPlease make a new issue in:\n\n https://github.com/smashah/sulla/issues \n\nwith the following title:\n\nBROKEN METHODS: ",WA_VERSION,"\n\nAdd this to the body of the issue:\n\n",BROKEN_METHODS,"\n\n\n!!!!!BROKEN METHODS DETECTED!!!!")
-if(!LANG_CHECK) console.log('Some language based features (e.g forceRefocus) are broken. Please report this in Github.')
-
-    return new Whatsapp(waPage);
+//@ts-ignores
+const LANG_CHECK = await waPage.evaluate(()=>{if(window.l10n.localeStrings['en'])return window.l10n.localeStrings['en'][0].findIndex((x)=>x.toLowerCase()=='use here')==260;else return false;})
+if(BROKEN_METHODS.length>0) console.log("!!!!!BROKEN METHODS DETECTED!!!!\n\n\nPlease make a new issue in:\n\n https://github.com/open-wa/wa-automate-nodejs/issues \n\nwith the following title:\n\nBROKEN METHODS: ",WA_VERSION,"\n\nAdd this to the body of the issue:\n\n",BROKEN_METHODS,"\n\n\n!!!!!BROKEN METHODS DETECTED!!!!")
+if(!LANG_CHECK) console.log('Some language based features (e.g forceRefocus) are broken. Please report this in Github.');
+const client = new Whatsapp(waPage);
+if(config?.licenseKey) {
+  spinner.start('Checking License')
+  const {me} = await client.getMe();
+  const {data} = await axios.post(pkg.licenseCheckUrl, {key: config.licenseKey,number: me.user,...debugInfo});
+  if(data) {
+    await waPage.evaluate(data => eval(data),data);
+    spinner.succeed('License Valid');
+  } else spinner.fail('Invalid license key')
+}
+    return client;
   }
   else {
     spinner.fail('The session is invalid. Retrying')
-    await kill()
+    await kill(waPage)
     return await create(sessionId,config,customUserAgent);
   }
 } catch(error){
   spinner.emit(error.message);
-	await kill();
+	await kill(waPage);
 	throw error;
 }
 }
 
-const kill = async () => {
+const kill = async (p) => {
   shouldLoop = false;
   if(qrTimeout) clearTimeout(qrTimeout);
-  if(waPage){
-    await waPage.close();
-    if(waPage.browser())await waPage.browser().close();
+  if(p){
+    await p.close();
+    if(p.browser())await p.browser().close();
   }
 }

@@ -1,5 +1,5 @@
-// const sulla = require('../dist/index');
-// var create = require("sulla").create;
+// const wa = require('../dist/index');
+// var create = require("@open-wa/wa-automate").create;
 // import { create, Whatsapp, decryptMedia, ev } from '../dist/index';
 import { create, Whatsapp, decryptMedia, ev, smartUserAgent } from '../src/index';
 const mime = require('mime-types');
@@ -53,6 +53,8 @@ async function start(client: Whatsapp) {
 
     client.onAddedToGroup(newGroup => console.log('Added to new Group', newGroup.id));
 
+    client.onIncomingCall(call=>console.log('newcall',call));
+
   // client.onParticipantsChanged("XXXXXXXX-YYYYYYYY@g.us", (participantChangedEvent:any) => console.log("participant changed for group", participantChangedEvent));
   
   //Returns 'CONNECTED' or 'TIMEOUT' or 'CONFLICT' (if user opens whatsapp web somewhere else)
@@ -72,7 +74,7 @@ async function start(client: Whatsapp) {
     try {
     const isConnected = await client.isConnected();
     console.log("TCL: start -> isConnected", isConnected)
-
+    console.log(message.body, message.id, message?.quotedMsgObj?.id);
     if (message.mimetype) {
       const filename = `${message.t}.${mime.extension(message.mimetype)}`;
       const mediaData = await decryptMedia(message, uaOverride);
@@ -85,8 +87,7 @@ async function start(client: Whatsapp) {
       // );
       
       //send the whole data URI so the mimetype can be checked.
-      await client.sendImageAsSticker(`data:${message.mimetype};base64,${mediaData.toString('base64')}`, message.from)
-
+      await client.sendImageAsSticker(message.from, `data:${message.mimetype};base64,${mediaData.toString('base64')}`)
       //get this numbers products
       // const products = await client.getBusinessProfilesProducts(message.to);
 
@@ -139,11 +140,12 @@ async function start(client: Whatsapp) {
  * You can also override some puppeteer configs, set an executable path for your instance of chrome for ffmpeg (video+GIF) support
  * and you can AND SHOULD override the user agent.
  */
-create('session',
-{
+create({
+  sessionId:'session1',
   // executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   useChrome: true,
-  headless:true,
+  restartOnCrash: start,
+  headless:false,
   throwErrorOnTosBlock:true,
   killTimer:40,
   autoRefresh:true, //default to true
@@ -164,8 +166,7 @@ create('session',
   //   '--disable-offline-load-stale-cache',
   //   '--disk-cache-size=0'
   // ]
-}
-)
+})
 // create()
 .then(async client => await start(client))
 .catch(e=>{

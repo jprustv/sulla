@@ -1,3 +1,5 @@
+import { Whatsapp } from '../..';
+
 export { Chat } from './chat';
 export { Contact } from './contact';
 export { Message } from './message';
@@ -80,8 +82,8 @@ export interface ConfigObject {
      * This sessionData is provided in a generated JSON file upon QR scan or an event.
      * You can capture the event like so:
      * ```javascript
-     * import {create, ev} from 'sulla-hotfix';
-     * ev.on('sessionData', async (sessionData, sessionId) =>{
+     * import {create, ev} from '@open-wa/wa-automate';
+     * ev.on('sessionData.**', async (sessionData, sessionId) =>{
      *          console.log(sessionId, sessionData)
      *      })
      * ```
@@ -93,6 +95,39 @@ export interface ConfigObject {
      * You can find all possible arguements [here](https://peter.sh/experiments/chromium-command-line-switches/).
      */
     chromiumArgs ?: string[],
+    /**
+     * If set to true, skipBrokenMethodsCheck will bypass the health check before startup. It is highly suggested to not set this to true.
+     * Default: false
+     */
+    skipBrokenMethodsCheck ?: boolean,
+    /**
+     * This is the name of the session. You have to make sure that this is unique for every session.
+     */
+    sessionId ?: string,
+    /**
+     * In order to unlock the functionality to send texts to unknown numbers, you need an License key.
+     * One License Key is valid for each number. Each License Key is £5 per month or £50 per year.
+     * 
+     * For now the process happens through [Buy Me A Coffee](https://www.buymeacoffee.com/smashah) (BMAC)
+     * 
+     * How to get an License key:
+     * 1. Go to https://www.buymeacoffee.com/smashah
+     * 2. Click on 'Membership'.
+     * 3. Select your payment preference (monthly/annually)
+     * 5. Add the number you want to assign to the License Key in the notes, along with the use case for this functionality.
+     * 6. Select "Make this message private."
+     * 7. Complete the process for membership.
+     * 8. I will then send you the License key via email.
+     * 
+     * Notes:
+     * 1. You can change the number assigned to that License Key at any time, just message me the new number on the private discord channel or on BMAC.
+     * 2. In order to cancel your License Key, simply stop your membership.
+     */
+    licenseKey ?: string,
+    /**
+     * You may set a custom user agent to prevent detection by WhatsApp. However, due to recent developments, this is not really neccessary any more.
+     */
+    customUserAgent ?: string,
     /**
      * You can enable remote devtools by setting this to trye. If you set this to true there will be security on the devtools url.
      * If you want, you can also pass a username & password.
@@ -111,7 +146,7 @@ export interface ConfigObject {
      */
     throwErrorOnTosBlock ?: boolean,
     /**
-     * By default, all instances of sulla are headless (i.e you don't see a chrome window open), you can set this to false to show the chrome/chromium window.
+     * By default, all instances of @open-wa/wa-automate are headless (i.e you don't see a chrome window open), you can set this to false to show the chrome/chromium window.
      */
     headless ?: boolean,
     /**
@@ -134,6 +169,19 @@ export interface ConfigObject {
      * If true, the program will automatically try to detect the instance of chorme on the machine. Please note this overrides executablePath.
      */
     useChrome ?: boolean,
+    /**
+     * If set, the program will try to recreate itself when the page crashes. You have to pass the function that you want called upon restart. Please note that when the page crashes you may miss some messages.
+     * E.g:
+     * ```javascript
+     * const start  = async (client: Whatsapp) => {...}
+     * create({
+     * ...
+     * restartOnCrash: start,
+     * ...
+     * })
+     * ```
+     */
+    restartOnCrash ?: (value: Whatsapp) => any | Function,
     // @private
     [x: string]: any 
 }

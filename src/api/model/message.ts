@@ -100,6 +100,7 @@ export interface Message {
     presence: { id: string; chatstates: any[] };
   };
   chatId: string;
+  quotedMsg: any;
   quotedMsgObj: any;
   mediaData: {};
 }

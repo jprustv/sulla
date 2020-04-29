@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>LiveLocationChangedEvent | @open-wa/wa-automate - v1.9.4</title>
+	<title>Call | @open-wa/wa-automate - v1.9.4</title>
 	<meta name="description" content="Documentation for @open-wa/wa-automate - v1.9.4">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -56,10 +56,10 @@
 					<a href="../globals.html">Globals</a>
 				</li>
 				<li>
-					<a href="livelocationchangedevent.html">LiveLocationChangedEvent</a>
+					<a href="call.html">Call</a>
 				</li>
 			</ul>
-			<h1>Interface LiveLocationChangedEvent</h1>
+			<h1>Interface Call</h1>
 		</div>
 	</div>
 </header>
@@ -70,7 +70,7 @@
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<span class="target">LiveLocationChangedEvent</span>
+						<span class="target">Call</span>
 					</li>
 				</ul>
 			</section>
@@ -81,13 +81,15 @@
 						<section class="tsd-index-section ">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="livelocationchangedevent.html#accuracy" class="tsd-kind-icon">accuracy</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="livelocationchangedevent.html#degrees" class="tsd-kind-icon">degrees</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="livelocationchangedevent.html#id" class="tsd-kind-icon">id</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="livelocationchangedevent.html#lastupdated" class="tsd-kind-icon">last<wbr>Updated</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="livelocationchangedevent.html#lat" class="tsd-kind-icon">lat</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="livelocationchangedevent.html#lng" class="tsd-kind-icon">lng</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="livelocationchangedevent.html#speed" class="tsd-kind-icon">speed</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="call.html#canhandlelocally" class="tsd-kind-icon">can<wbr>Handle<wbr>Locally</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="call.html#id" class="tsd-kind-icon">id</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="call.html#isgroup" class="tsd-kind-icon">is<wbr>Group</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="call.html#isvideo" class="tsd-kind-icon">is<wbr>Video</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="call.html#offertime" class="tsd-kind-icon">offer<wbr>Time</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="call.html#outgoing" class="tsd-kind-icon">outgoing</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="call.html#participants" class="tsd-kind-icon">participants</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="call.html#peerjid" class="tsd-kind-icon">peer<wbr>Jid</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="call.html#webclientshouldhandle" class="tsd-kind-icon">web<wbr>Client<wbr>Should<wbr>Handle</a></li>
 							</ul>
 						</section>
 					</div>
@@ -96,22 +98,12 @@
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Properties</h2>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="accuracy" class="tsd-anchor"></a>
-					<h3>accuracy</h3>
-					<div class="tsd-signature tsd-kind-icon">accuracy<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+					<a name="canhandlelocally" class="tsd-anchor"></a>
+					<h3>can<wbr>Handle<wbr>Locally</h3>
+					<div class="tsd-signature tsd-kind-icon">can<wbr>Handle<wbr>Locally<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/chat.ts#L46">api/model/chat.ts:46</a></li>
-						</ul>
-					</aside>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="degrees" class="tsd-anchor"></a>
-					<h3>degrees</h3>
-					<div class="tsd-signature tsd-kind-icon">degrees<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">any</span></div>
-					<aside class="tsd-sources">
-						<ul>
-							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/chat.ts#L47">api/model/chat.ts:47</a></li>
+							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/call.ts#L7">api/model/call.ts:7</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -121,47 +113,77 @@
 					<div class="tsd-signature tsd-kind-icon">id<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/chat.ts#L41">api/model/chat.ts:41</a></li>
+							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/call.ts#L2">api/model/call.ts:2</a></li>
 						</ul>
 					</aside>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="lastupdated" class="tsd-anchor"></a>
-					<h3>last<wbr>Updated</h3>
-					<div class="tsd-signature tsd-kind-icon">last<wbr>Updated<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+					<a name="isgroup" class="tsd-anchor"></a>
+					<h3>is<wbr>Group</h3>
+					<div class="tsd-signature tsd-kind-icon">is<wbr>Group<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/chat.ts#L45">api/model/chat.ts:45</a></li>
+							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/call.ts#L6">api/model/call.ts:6</a></li>
 						</ul>
 					</aside>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="lat" class="tsd-anchor"></a>
-					<h3>lat</h3>
-					<div class="tsd-signature tsd-kind-icon">lat<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+					<a name="isvideo" class="tsd-anchor"></a>
+					<h3>is<wbr>Video</h3>
+					<div class="tsd-signature tsd-kind-icon">is<wbr>Video<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/chat.ts#L42">api/model/chat.ts:42</a></li>
+							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/call.ts#L5">api/model/call.ts:5</a></li>
 						</ul>
 					</aside>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="lng" class="tsd-anchor"></a>
-					<h3>lng</h3>
-					<div class="tsd-signature tsd-kind-icon">lng<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+					<a name="offertime" class="tsd-anchor"></a>
+					<h3>offer<wbr>Time</h3>
+					<div class="tsd-signature tsd-kind-icon">offer<wbr>Time<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/chat.ts#L43">api/model/chat.ts:43</a></li>
+							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/call.ts#L4">api/model/call.ts:4</a></li>
 						</ul>
 					</aside>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="speed" class="tsd-anchor"></a>
-					<h3>speed</h3>
-					<div class="tsd-signature tsd-kind-icon">speed<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+					<a name="outgoing" class="tsd-anchor"></a>
+					<h3>outgoing</h3>
+					<div class="tsd-signature tsd-kind-icon">outgoing<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/chat.ts#L44">api/model/chat.ts:44</a></li>
+							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/call.ts#L8">api/model/call.ts:8</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="participants" class="tsd-anchor"></a>
+					<h3>participants</h3>
+					<div class="tsd-signature tsd-kind-icon">participants<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">[</span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">]</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/call.ts#L10">api/model/call.ts:10</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="peerjid" class="tsd-anchor"></a>
+					<h3>peer<wbr>Jid</h3>
+					<div class="tsd-signature tsd-kind-icon">peer<wbr>Jid<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/call.ts#L3">api/model/call.ts:3</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="webclientshouldhandle" class="tsd-anchor"></a>
+					<h3>web<wbr>Client<wbr>Should<wbr>Handle</h3>
+					<div class="tsd-signature tsd-kind-icon">web<wbr>Client<wbr>Should<wbr>Handle<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/open-wa/wa-automate-nodejs/blob/3ac31d8/src/api/model/call.ts#L9">api/model/call.ts:9</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -180,28 +202,34 @@
 				</ul>
 				<ul class="current">
 					<li class="current tsd-kind-interface">
-						<a href="livelocationchangedevent.html" class="tsd-kind-icon">Live<wbr>Location<wbr>Changed<wbr>Event</a>
+						<a href="call.html" class="tsd-kind-icon">Call</a>
 						<ul>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="livelocationchangedevent.html#accuracy" class="tsd-kind-icon">accuracy</a>
+								<a href="call.html#canhandlelocally" class="tsd-kind-icon">can<wbr>Handle<wbr>Locally</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="livelocationchangedevent.html#degrees" class="tsd-kind-icon">degrees</a>
+								<a href="call.html#id" class="tsd-kind-icon">id</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="livelocationchangedevent.html#id" class="tsd-kind-icon">id</a>
+								<a href="call.html#isgroup" class="tsd-kind-icon">is<wbr>Group</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="livelocationchangedevent.html#lastupdated" class="tsd-kind-icon">last<wbr>Updated</a>
+								<a href="call.html#isvideo" class="tsd-kind-icon">is<wbr>Video</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="livelocationchangedevent.html#lat" class="tsd-kind-icon">lat</a>
+								<a href="call.html#offertime" class="tsd-kind-icon">offer<wbr>Time</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="livelocationchangedevent.html#lng" class="tsd-kind-icon">lng</a>
+								<a href="call.html#outgoing" class="tsd-kind-icon">outgoing</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="livelocationchangedevent.html#speed" class="tsd-kind-icon">speed</a>
+								<a href="call.html#participants" class="tsd-kind-icon">participants</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="call.html#peerjid" class="tsd-kind-icon">peer<wbr>Jid</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="call.html#webclientshouldhandle" class="tsd-kind-icon">web<wbr>Client<wbr>Should<wbr>Handle</a>
 							</li>
 						</ul>
 					</li>

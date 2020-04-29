@@ -1,15 +1,16 @@
 const express = require('express')
 const path = require("path");
-const https = require('https')
+import axios from 'axios';
 
-const sulla = require('sulla-hotfix');
-import { Whatsapp, decryptMedia, ev} from 'sulla-hotfix';
+const wa = require('@open-wa/wa-automate');
+import { Whatsapp, decryptMedia, ev} from '@open-wa/wa-automate';
 const mime = require('mime-types');
 const fs = require('fs');
 
-const uaOverride = 'WhatsApp/2.16.352 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Safari/605.1.15';
 const ON_DEATH = require('death');
 let globalClient:Whatsapp;
+
+const PORT = 8082;
 
 const app = express()
 app.use(express.json())
@@ -19,7 +20,7 @@ ON_DEATH(async function(signal, err) {
   if(globalClient)await globalClient.kill();
 })
 
-sulla.create('session',{ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless:true, throwErrorOnTosBlock:true, killTimer:40, autoRefresh:true, qrRefreshS:15, cacheEnabled:false, }).then(client => start(client));
+wa.create('session',{ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless:true, throwErrorOnTosBlock:true, killTimer:40, autoRefresh:true, qrRefreshS:15, cacheEnabled:false, }).then(client => start(client));
 
 ev.on('qr.**', async (qrcode,sessionId) => {
   const imageBuffer = Buffer.from(qrcode.replace('data:image/png;base64,',''), 'base64');
@@ -30,49 +31,49 @@ ev.on('sessionData', async (sessionData, sessionId) =>{
   console.log(sessionId, sessionData)
 })
 
+const stateChanged = state => {
+  console.log('statechanged', state)
+  if(state==="CONFLICT") globalClient.forceRefocus();
+}
+const anyMessage = message=>console.log(message.type);
+
+const processCurrencyRequest = async message => {
+  const currency = message.body.substring(message.body.indexOf("!dollar",0)+8)
+		console.log("Getting currency: " + currency);
+    var url = 'https://mattdavenport.net/currency/cache/latest.json';
+    const {data} = await axios({
+      url,
+    });
+    const rates = 'rates';
+    var dolarResponse = "💵 1 USD = " + JSON.parse(data)[rates][currency] + " " + currency;
+    await globalClient.reply(message.from, dolarResponse, message.id.toString());	  
+    return true;
+}
+
 async function start(client: Whatsapp) {
   globalClient = client;
-  client.onStateChanged(state=>{
-    console.log('statechanged', state)
-    if(state==="CONFLICT") client.forceRefocus();
-  });
-  client.onAnyMessage(message=>console.log(message.type));
-  client.onMessage(async message => {
-    try {
-    await client.isConnected();
-    if (message.mimetype) {
-      const filename = `${message.t}.${mime.extension(message.mimetype)}`;
-      const mediaData = await decryptMedia(message, uaOverride);
-      fs.writeFile(filename, mediaData, function(err) {
-        if (err) { return console.log(err); }
-        console.log('The file was saved!');
-      });
-    } else if (message.type==="location") {
-        console.log("TCL: location -> message", message.lat, message.lng, message.loc)
-    } else if (message.body.indexOf("!location") > -1){
-	    await client.sendLocation(message.from, 37.422, -122.084, "Googleplex\nGoogle Headquarters")
-	} else if (message.body.indexOf("!gif") > -1){
-        await client.sendGiphy(message.from,'https://media.giphy.com/media/oYtVHSxngR3lC/giphy.gif','Oh my god it works');
-	} else if ((message.body.indexOf("!dollar") > -1) && (message.body.length >= 10)){
-		const currency = message.body.substring(message.body.indexOf("!dollar",0)+8)
-		console.log("Getting currency: " + currency);
-		var url = 'https://mattdavenport.net/currency/cache/latest.json';
-        https.get(url, (resp) => {
-          let data = '';
-          resp.on('data', (chunk) => { data += chunk; });
-          resp.on('end', async () => {
-	        const rates = 'rates';
-	        var dolarResponse = "💵 1 USD = " + JSON.parse(data)[rates][currency] + " " + currency;
-	        await client.reply(message.from, dolarResponse, message.id.toString());	  
-	      });
-        }).on("error", (err) => { console.log("Error: " + err.message); } );
-    } else {
-        //do nothing
-    }
-    } catch (error) {
-      console.log("TCL: start -> error", error)
-    }
-  });
+  client.onStateChanged(stateChanged);
+  client.onAnyMessage(anyMessage);
+  client.onMessage(onMessage);
+}
+
+const onMessage = async message => {
+  try {
+  if(message.mimetype){
+    const filename = `${message.t}.${mime.extension(message.mimetype)}`;
+    const mediaData = await decryptMedia(message);
+    fs.writeFile(filename, mediaData, function(err) {
+      if (err) { return console.log(err); }
+      console.log('The file was saved!');
+    });
+  }
+  if(message.type==="location") console.log("TCL: location -> message", message.lat, message.lng, message.loc);
+  if(message.body.includes("!location")) await globalClient.sendLocation(message.from, 37.422, -122.084, "Googleplex\nGoogle Headquarters")
+  if(message.body.includes("!gif")) await globalClient.sendGiphy(message.from,'https://media.giphy.com/media/oYtVHSxngR3lC/giphy.gif','Oh my god it works');
+  if((message.body.includes("!dollar")) && (message.body.length >= 10)) await processCurrencyRequest(message);
+} catch (error) {
+  console.log("TCL: start -> error", error)
+}
 }
 
 app.get('/getAllNewMessages', async (req, res) => {
@@ -121,6 +122,6 @@ app.post('/sendPNG' , async (req,res) => {
   return res.send(newMessage);
 })
 
-app.listen(8082, function () {
-  console.log('\n• Listening on port 8081!');
+app.listen(PORT, function () {
+  console.log(`\n• Listening on port ${PORT}!`);
 });

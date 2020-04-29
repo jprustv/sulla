@@ -1,19 +1,13 @@
 import * as path from 'path';
 const fs = require('fs');
-const {installMouseHelper} = require('./mouse-helper');
 const ChromeLauncher = require('chrome-launcher');
-// import opuppeteer from 'puppeteer';
-// puppeteer-extra is a drop-in replacement for puppeteer,
-// it augments the installed puppeteer with plugin functionality
 const puppeteer = require('puppeteer-extra');
 const devtools = require('puppeteer-extra-plugin-devtools')()
-// add stealth plugin and use defaults (all evasion techniques)
 const StealthPlugin = require('puppeteer-extra-plugin-stealth')
 puppeteer.use(StealthPlugin());
 import { puppeteerConfig, useragent, width, height} from '../config/puppeteer.config';
 //@ts-ignore
 import { Browser, Page } from '@types/puppeteer';
-import { randomMouseMovements } from './auth';
 const ON_DEATH = require('death'); //this is intentionally ugly
 let browser;
 
@@ -26,7 +20,6 @@ export async function initWhatsapp(sessionId?: string, puppeteerConfigOverride?:
     height,
     deviceScaleFactor: 1
   });
-  // await installMouseHelper(waPage);
   const cacheEnabled = puppeteerConfigOverride&&puppeteerConfigOverride.cacheEnabled? puppeteerConfigOverride.cacheEnabled :true
   const blockCrashLogs = puppeteerConfigOverride&&puppeteerConfigOverride.blockCrashLogs? puppeteerConfigOverride.blockCrashLogs :false;
   await waPage.setCacheEnabled(cacheEnabled);
@@ -49,14 +42,10 @@ export async function initWhatsapp(sessionId?: string, puppeteerConfigOverride?:
   if(sessionjson) await waPage.evaluateOnNewDocument(
     session => {
         localStorage.clear();
-        localStorage.setItem('WABrowserId', session.WABrowserId);
-        localStorage.setItem('WASecretBundle', session.WASecretBundle);
-        localStorage.setItem('WAToken1', session.WAToken1);
-        localStorage.setItem('WAToken2', session.WAToken2);
+        Object.keys(session).forEach(key=>localStorage.setItem(key,session[key]));
     }, sessionjson);
     
   await waPage.goto(puppeteerConfig.whatsappUrl);
-  // await randomMouseMovements(waPage);
   return waPage;
 }
 
@@ -75,7 +64,7 @@ async function initBrowser(sessionId?: string, puppeteerConfigOverride:any={}) {
 
   if(puppeteerConfigOverride?.useChrome) {
     puppeteerConfigOverride.executablePath = ChromeLauncher.Launcher.getInstallations()[0];
-    console.log('\nFound chrome', puppeteerConfigOverride.executablePath)
+    // console.log('\nFound chrome', puppeteerConfigOverride.executablePath)
   }
 
   const browser = await puppeteer.launch({

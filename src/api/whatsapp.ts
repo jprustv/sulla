@@ -12,10 +12,16 @@ import { ParticipantChangedEventModel } from './model/group-metadata';
 import { useragent } from '../config/puppeteer.config'
 import sharp from 'sharp';
 
-export const getBase64 = async (url: string) => {
+export const getBase64 = async (url: string, optionsOverride: any = {} ) => {
   try {
-    const res = await axios
-      .get(url, {
+    const res = await axios({
+        method:"get",
+        url,
+        headers: {
+          'DNT':1,
+          'Upgrade-Insecure-Requests':1
+        },
+        ...optionsOverride,
         responseType: 'arraybuffer'
       });
     return `data:${res.headers['content-type']};base64,${Buffer.from(res.data, 'binary').toString('base64')}`
@@ -45,80 +51,111 @@ declare module WAPI {
   const waitNewMessages: (rmCallback: boolean, callback: Function) => void;
   const addAllNewMessagesListener: (callback: Function) => void;
   const onStateChanged: (callback: Function) => void;
+  const onIncomingCall: (callback: Function) => any;
   const onAddedToGroup: (callback: Function) => any;
+  const onBattery: (callback: Function) => any;
   const onParticipantsChanged: (groupId: string, callback: Function) => any;
+  const _onParticipantsChanged: (groupId: string, callback: Function) => any;
   const onLiveLocation: (chatId: string, callback: Function) => any;
-  const sendMessage: (to: string, content: string) => void;
+  const sendMessage: (to: string, content: string) => Promise<string>;
   const sendMessageToID: (to: string, content: string) => void;
-  const sendMessageWithMentions: (to: string, content: string) => string;
+  const sendMessageWithMentions: (to: string, content: string) => Promise<string>;
   const setChatState: (chatState: ChatState, chatId: string) => void;
-  const reply: (to: string, content: string, quotedMsg: string | Message) => void;
+  const reply: (to: string, content: string, quotedMsg: string | Message) => Promise<string|boolean>;
   const getGeneratedUserAgent: (userAgent?: string) => string;
   const forwardMessages: (to: string, messages: string | (string | Message)[], skipMyMessages: boolean) => any;
   const sendLocation: (to: string, lat: any, lng: any, loc: string) => void;
   const addParticipant: (groupId: string, contactId: string) => void;
   const setMyName: (newName: string) => void;
   const setMyStatus: (newStatus: string) => void;
+  const setPresence: (available: boolean) => void;
   const getStatus: (contactId: string) => void;
-  const getGroupAdmins: (groupId: string) => Contact[];
-  const removeParticipant: (groupId: string, contactId: string) => void;
-  const promoteParticipant: (groupId: string, contactId: string) => void;
-  const demoteParticipant: (groupId: string, contactId: string) => void;
-  const sendImageAsSticker: (webpBase64: string, to: string, metadata?: any) => void;
+  const setGroupIcon: (groupId: string, imgData: string) => Promise<boolean>;
+  const getGroupAdmins: (groupId: string) => Promise<Contact[]>;
+  const removeParticipant: (groupId: string, contactId: string) => Promise<boolean>;
+  const addOrRemoveLabels: (label: string, id: string, type: string) => Promise<boolean>;
+  const promoteParticipant: (groupId: string, contactId: string) => Promise<boolean>;
+  const demoteParticipant: (groupId: string, contactId: string) => Promise<boolean>;
+  const setGroupToAdminsOnly: (groupId: string, onlyAdmins: boolean) => Promise<boolean>;
+  const setGroupEditToAdminsOnly: (groupId: string, onlyAdmins: boolean) => Promise<boolean>;
+  const sendImageAsSticker: (webpBase64: string, to: string, metadata?: any) => Promise<any>;
   const createGroup: (groupName: string, contactId: string|string[]) => Promise<any>;
-  const sendSeen: (to: string) => void;
+  const sendSeen: (to: string) => Promise<boolean>;
+  const isChatOnline: (id: string) => Promise<boolean>;
+  const sendLinkWithAutoPreview: (to: string,url: string,text: string) => Promise<boolean>;
+  const contactBlock: (id: string) => Promise<boolean>;
+  const contactUnblock: (id: string) => Promise<boolean>;
+  const deleteConversation: (chatId: string) => Promise<boolean>;
+  const clearChat: (chatId: string) => Promise<any>;
+  const ghostForward: (chatId: string, messageId: string) => Promise<boolean>;
+  const revokeGroupInviteLink: (chatId: string) => Promise<string> | Promise<boolean>;
+  const getGroupInviteLink: (chatId: string) => Promise<string>;
   const sendImage: (
     base64: string,
     to: string,
     filename: string,
-    caption: string
-  ) => void;
+    caption: string,
+    quotedMsgId?: string,
+    waitForId?: boolean
+  ) => Promise<string>;
   const sendMessageWithThumb: (
     thumb: string,
     url: string,
     title: string,
     description: string,
+    text: string,
     chatId: string
-  ) => void;
-  const getBusinessProfilesProducts: (to: string) => any;
+  ) => Promise<boolean>;
+  const getBusinessProfilesProducts: (to: string) => Promise<any>;
+  const postStatus: (text: string, params: any) => Promise<any>;
+  const deleteStatus: (statusesToDelete: string | string[]) => Promise<any>;
   const sendImageWithProduct: (base64: string, to: string, caption: string, bizNumber: string, productId: string) => any;
+  const sendVCard: (chatId: string, vcardString: string, contactName: string, contactNumber?: string) => Promise<boolean>;
   const sendFile: (
     base64: string,
     to: string,
     filename: string,
     caption: string
-  ) => void;
+  ) => Promise<string>;
   const sendVideoAsGif: (
     base64: string,
     to: string,
     filename: string,
-    caption: string
-  ) => void;
+    caption: string,
+    quotedMsgId?: string
+  ) => Promise<string>;
   const getAllContacts: () => Contact[];
   const getWAVersion: () => String;
   const getMe: () => any;
+  const deleteAllStatus: () => Promise<boolean>;
+  const getMyStatusArray: () => Promise<any>;
   const getAllUnreadMessages: () => any;
+  const getIndicatedNewMessages: () => any;
   const getAllChatsWithMessages: (withNewMessageOnly?: boolean) => any;
   const getAllChats: () => any;
   const getBatteryLevel: () => Number;
   const getChat: (contactId: string) => Chat;
+  const getLastSeen: (contactId: string) => Promise<number | boolean>;
   const getProfilePicFromServer: (chatId: string) => any;
   const getAllChatIds: () => string[];
   const getAllChatsWithNewMsg: () => Chat[];
   const getAllNewMessages: () => any;
   const getAllGroups: () => Chat[];
-  const getGroupParticipantIDs: (groupId: string) => Id[];
+  const getGroupParticipantIDs: (groupId: string) => Promise<Id[]>;
+  const joinGroupViaLink: (link: string) => Promise<string | boolean>;
   const leaveGroup: (groupId: string) => any;
+  const getVCards: (msgId: string) => any;
   const getContact: (contactId: string) => Contact;
   const checkNumberStatus: (contactId: string) => any;
   const getChatById: (contactId: string) => Chat;
   const smartDeleteMessages: (contactId: string, messageId: string[] | string, onlyLocal:boolean) => any;
   const sendContact: (to: string, contact: string | string[]) => any;
-  const simulateTyping: (to: string, on: boolean) => void;
+  const simulateTyping: (to: string, on: boolean) => Promise<boolean>;
+  const archiveChat: (id: string, archive: boolean) => Promise<boolean>;
   const isConnected: () => Boolean;
-  const loadEarlierMessages: (contactId: string) => Message[];
-  const loadAllEarlierMessages: (contactId: string) => void;
-  const asyncLoadAllEarlierMessages: (contactId: string) => void;
+  const loadEarlierMessages: (contactId: string) => Promise<Message []>;
+  const loadAllEarlierMessages: (contactId: string) => any;
+  const asyncLoadAllEarlierMessages: (contactId: string) => any;
   const getUnreadMessages: (
     includeMe: boolean,
     includeNotifications: boolean,
@@ -137,12 +174,14 @@ declare module WAPI {
 }
 
 export class Whatsapp {
+  _loadedModules: any[];
 
   /**
    * @param page [Page] [Puppeteer Page]{@link https://pptr.dev/#?product=Puppeteer&version=v2.1.1&show=api-class-page} running web.whatsapp.com
    */
   constructor(public page: Page) {
     this.page = page;
+    this._loadedModules = [];
   }
 
   /**
@@ -169,6 +208,19 @@ export class Whatsapp {
       }));
   }
 
+  /** @event Listens to battery changes
+   * @param fn callback
+   * @fires number
+   */
+  public async onBattery(fn: (battery:number) => void) {
+    this.page.exposeFunction('onBattery', (battery: number) =>
+      fn(battery)
+    ).then(_ => this.page.evaluate(
+      () => {
+        WAPI.onBattery(window["onBattery"]);
+      }));
+  }
+
   /**
    * @event Listens to messages received
    * @returns Observable stream of messages
@@ -182,6 +234,31 @@ export class Whatsapp {
       }));
   }
 
+
+  /**
+   * @event Listens to new incoming calls
+   * @returns Observable stream of call request objects
+   */
+  public onIncomingCall(fn: (call: any) => void) {
+    this.page.exposeFunction('onIncomingCall', (call: any) =>
+      fn(call)
+    ).then(_ => this.page.evaluate(
+      () => {
+        WAPI.onIncomingCall(call => window['onIncomingCall'](call))
+      }));
+  }
+
+  /**
+   * Set presence to available or unavailable.
+   * @param available if true it will set your presence to 'online', false will set to unavailable (i.e no 'online' on recipients' phone);
+   */
+  public async setPresence(available: boolean) {
+    return await this.page.evaluate(
+      available => {WAPI.setPresence(available)},
+      available
+      )
+  }
+
   /**
    * set your about me
    * @param newStatus String new profile status
@@ -190,6 +267,46 @@ export class Whatsapp {
     return await this.page.evaluate(
       ({newStatus}) => {WAPI.setMyStatus(newStatus)},
       {newStatus}
+      )
+  }
+
+  /**
+   * Adds label from chat, message or contact. Only for business accounts.
+   * @param label: either the id or the name of the label. id will be something simple like anhy nnumber from 1-10, name is the label of the label if that makes sense.
+   * @param id The Chat, message or contact id to which you want to add a label
+   */
+  public async addLabel(label: string, id: string) {
+    return await this.page.evaluate(
+      ({label, id}) => {WAPI.addOrRemoveLabels(label, id, 'add')},
+      {label, id}
+      )
+  }
+
+  /**
+   * Removes label from chat, message or contact. Only for business accounts.
+   * @param label: either the id or the name of the label. id will be something simple like anhy nnumber from 1-10, name is the label of the label if that makes sense.
+   * @param id The Chat, message or contact id to which you want to add a label
+   */
+  public async removeLabel(label: string, id: string) {
+    return await this.page.evaluate(
+      ({label, id}) => {WAPI.addOrRemoveLabels(label, id, 'remove')},
+      {label, id}
+      )
+  }
+
+/**
+ * Send VCARD
+ *
+ * @param {string} chatId '000000000000@c.us'
+ * @param {string} vcard vcard as a string
+ * @param {string} contactName The display name for the contact. CANNOT BE NULL OTHERWISE IT WILL SEND SOME RANDOM CONTACT FROM YOUR ADDRESS BOOK.
+ * @param {string} contactNumber If supplied, this will be injected into the vcard (VERSION 3 ONLY FROM VCARDJS) with the whatsapp id to make it show up with the correct buttins on whatsapp. The format of this param should be including country code, without any other formating. e.g:
+ * `4477777777777`
+ */
+  public async sendVCard(chatId: string, vcard: string, contactName:string,  contactNumber?: string) {
+    return await this.page.evaluate(
+      ({chatId, vcard, contactName, contactNumber}) => {WAPI.sendVCard(chatId, vcard,contactName, contactNumber)},
+      {chatId, vcard, contactName, contactNumber}
       )
   }
 
@@ -236,6 +353,7 @@ export class Whatsapp {
     );
   }
 
+
   /**
    * Shuts down the page and browser
    * @returns true
@@ -250,7 +368,7 @@ export class Whatsapp {
   public async forceRefocus() {
     //255 is the address of 'use here'
     //@ts-ignore
-    const useHere: string = await this.page.evaluate(() => { return window.l10n.localeStrings[window.l10n._locale.l][0][window.l10n.localeStrings['en']?.[0].findIndex((x:string)=>x.toLowerCase()=='use here') || 257] });
+    const useHere: string = await this.page.evaluate(() => { return window.l10n.localeStrings[window.l10n._locale.l][0][window.l10n.localeStrings['en']?.[0].findIndex((x:string)=>x.toLowerCase()=='use here') || 260] });
     await this.page.waitForFunction(
       `[...document.querySelectorAll("div[role=button")].find(e=>{return e.innerHTML.toLowerCase()==="${useHere.toLowerCase()}"})`,
       { timeout: 0 }
@@ -280,22 +398,22 @@ export class Whatsapp {
   }
 
   /**
-   * @event Listens to add and remove evevnts on Groups
+   * @event Listens to add and remove events on Groups. This can no longer determine who commited the action and only reports the following events add, remove, promote, demote
    * @param to group id: xxxxx-yyyy@us.c
    * @param to callback
    * @returns Observable stream of participantChangedEvent
    */
-  public onParticipantsChanged(groupId: string, fn: (participantChangedEvent: ParticipantChangedEventModel) => void) {
+  public onParticipantsChanged(groupId: string, fn: (participantChangedEvent: ParticipantChangedEventModel) => void, useLegancyMethod : boolean = false) {
     const funcName = "onParticipantsChanged_" + groupId.replace('_', "").replace('_', "");
     return this.page.exposeFunction(funcName, (participantChangedEvent: ParticipantChangedEventModel) =>
       fn(participantChangedEvent)
     )
       .then(_ => this.page.evaluate(
-        ({ groupId,funcName }) => {
-        //@ts-ignore
-          WAPI.onParticipantsChanged(groupId, window[funcName]);
+        ({ groupId,funcName, useLegancyMethod }) => {
+          //@ts-ignore
+          if(useLegancyMethod) return WAPI._onParticipantsChanged(groupId, window[funcName]); else return WAPI.onParticipantsChanged(groupId, window[funcName]);
         },
-        { groupId, funcName}
+        { groupId, funcName, useLegancyMethod}
       ));
   }
 
@@ -353,23 +471,44 @@ export class Whatsapp {
     );
   }
 
+  /**
+   * Sends a link to a chat that includes a link preview.
+   * @param thumb The base 64 data of the image you want to use as the thunbnail. This should be no more than 200x200px. Note: Dont need data uri on this param
+   * @param url The link you want to send
+   * @param title The title of the link
+   * @param description The long description of the link preview
+   * @param text The text you want to inslude in the message section. THIS HAS TO INCLUDE THE URL otherwise the url will be prepended to the text automatically.
+   * @param chatId The chat you want to send this message to.
+   *
+   */
   public async sendMessageWithThumb(
+<<<<<<< HEAD
     thumb:string,
     url:string,
     title:string,
     description:string,
     chatId:string){
+=======
+    thumb: string,
+    url: string,
+    title: string,
+    description: string,
+    text: string,
+    chatId: string) {
+>>>>>>> d001c8c02c4cdee43e0e3db4a71499f7d7478205
     return await this.page.evaluate(
       ({ thumb,
         url,
         title,
         description,
+        text,
         chatId
       }) => {
         WAPI.sendMessageWithThumb(thumb,
           url,
           title,
           description,
+          text,
           chatId);
       },
       {
@@ -377,6 +516,7 @@ export class Whatsapp {
         url,
         title,
         description,
+        text,
         chatId
 
       }
@@ -407,9 +547,7 @@ export class Whatsapp {
   public async getGeneratedUserAgent(userA?: string) {
     let ua = userA || useragent;
     return await this.page.evaluate(
-      (ua) => {
-        WAPI.getGeneratedUserAgent(ua);
-      },
+      ({ua}) => WAPI.getGeneratedUserAgent(ua),
       { ua }
     );
   }
@@ -422,18 +560,50 @@ export class Whatsapp {
    * @param base64 base64 data:image/xxx;base64,xxx
    * @param filename string xxxxx
    * @param caption string xxxxx
+   * @param waitForKey boolean default: false set this to true if you want to wait for the id of the message. By default this is set to false as it will take a few seconds to retreive to the key of the message and this waiting may not be desirable for the majority of users.
+   * @returns Promise <boolean | string> This will either return true or the id of the message. It will return true after 10 seconds even if waitForId is true
    */
   public async sendImage(
     to: string,
     base64: string,
     filename: string,
-    caption: string
+    caption: string,
+    quotedMsgId?: string,
+    waitForId?: boolean
   ) {
     return await this.page.evaluate(
-      ({ to, base64, filename, caption }) => {
-        WAPI.sendImage(base64, to, filename, caption);
+      ({ to, base64, filename, caption, quotedMsgId, waitForId }) =>  WAPI.sendImage(base64, to, filename, caption, quotedMsgId, waitForId),
+      { to, base64, filename, caption, quotedMsgId, waitForId }
+    );
+  }
+
+
+/**
+ * Automatically sends a youtube link with the auto generated link preview. You can also add a custom message.
+ * @param chatId
+ * @param url string A youtube link.
+ * @param text string Custom text as body of the message, this needs to include the link or it will be appended after the link.
+ */
+  public async sendYoutubeLink(to: string, url: string, text?: string,) {
+    return this.sendLinkWithAutoPreview(to,url,text);
+  }
+
+/**
+ * Automatically sends a link with the auto generated link preview. You can also add a custom message.
+ * @param chatId
+ * @param url string A link.
+ * @param text string Custom text as body of the message, this needs to include the link or it will be appended after the link.
+ */
+  public async sendLinkWithAutoPreview(
+    to: string,
+    url: string,
+    text?: string,
+  ) {
+    return await this.page.evaluate(
+      ({ to,url, text }) => {
+        WAPI.sendLinkWithAutoPreview(to,url,text);
       },
-      { to, base64, filename, caption }
+      { to,url, text }
     );
   }
 
@@ -442,12 +612,11 @@ export class Whatsapp {
    * @param to string chatid
    * @param content string reply text
    * @param quotedMsg string | Message the msg object or id to reply to.
+   * @returns Promise<string | boolean> false if didn't work, otherwise returns message id.
    */
   public async reply(to: string, content: string, quotedMsg: any) {
     return await this.page.evaluate(
-      ({ to, content, quotedMsg }) => {
-        WAPI.reply(to, content, quotedMsg)
-      },
+      ({ to, content, quotedMsg }) =>WAPI.reply(to, content, quotedMsg),
       { to, content, quotedMsg }
     )
   }
@@ -458,19 +627,19 @@ export class Whatsapp {
    * @param base64 base64 data:image/xxx;base64,xxx
    * @param filename string xxxxx
    * @param caption string xxxxx
+   * @param quotedMsgId string true_0000000000@c.us_JHB2HB23HJ4B234HJB to send as a reply to a message
+   * @param waitForId boolean default: false set this to true if you want to wait for the id of the message. By default this is set to false as it will take a few seconds to retreive to the key of the message and this waiting may not be desirable for the majority of users.
+   * @returns Promise <boolean | string> This will either return true or the id of the message. It will return true after 10 seconds even if waitForId is true
    */
   public async sendFile(
     to: string,
     base64: string,
     filename: string,
-    caption: string
+    caption: string,
+    quotedMsgId?: string,
+    waitForId?: boolean
   ) {
-    return await this.page.evaluate(
-      ({ to, base64, filename, caption }) => {
-        WAPI.sendImage(base64, to, filename, caption);
-      },
-      { to, base64, filename, caption }
-    );
+    return this.sendImage(to, base64, filename, caption, quotedMsgId, waitForId);
   }
 
 
@@ -480,18 +649,20 @@ export class Whatsapp {
    * @param base64 base64 data:video/xxx;base64,xxx
    * @param filename string xxxxx
    * @param caption string xxxxx
+   * @param quotedMsgId string true_0000000000@c.us_JHB2HB23HJ4B234HJB to send as a reply to a message
    */
   public async sendVideoAsGif(
     to: string,
     base64: string,
     filename: string,
-    caption: string
+    caption: string,
+    quotedMsgId?: string
   ) {
     return await this.page.evaluate(
-      ({ to, base64, filename, caption }) => {
-        WAPI.sendVideoAsGif(base64, to, filename, caption);
+      ({ to, base64, filename, caption, quotedMsgId  }) => {
+        WAPI.sendVideoAsGif(base64, to, filename, caption, quotedMsgId );
       },
-      { to, base64, filename, caption }
+      { to, base64, filename, caption, quotedMsgId }
     );
   }
 
@@ -524,6 +695,33 @@ export class Whatsapp {
     }
   }
 
+
+  /**
+   * Sends a file by Url or custom options
+   * @param to chat id xxxxx@us.c
+   * @param url string https://i.giphy.com/media/oYtVHSxngR3lC/200w.mp4
+   * @param filename string 'video.mp4'
+   * @param caption string xxxxx
+   * @param quotedMsgId string true_0000000000@c.us_JHB2HB23HJ4B234HJB to send as a reply to a message
+   * @param requestConfig {} By default the request is a get request, however you can override that and many other options by sending this parameter. You can read more about this parameter here: https://github.com/axios/axios#request-config
+   */
+  public async sendFileFromUrl(
+    to: string,
+    url: string,
+    filename: string,
+    caption: string,
+    quotedMsgId?: string,
+    requestConfig: any = {}
+  ) {
+    try {
+     const base64 = await getBase64(url, requestConfig);
+      return await this.sendFile(to,base64,filename,caption,quotedMsgId)
+    } catch(error) {
+      console.log('Something went wrong', error);
+      return error;
+    }
+  }
+
 /**
  * Returns an object with all of your host device details
  */
@@ -548,6 +746,46 @@ export class Whatsapp {
       },
       { id }
     );
+  }
+
+  /**
+   * Post a status (story). Right now it is only white text on a black background. [Currently Paywalled](https://github.com/open-wa/wa-automate-nodejs#starting-a-conversation) [Only requires donation for immediate access - not membership]. Due for General Availability on 1st May 2020.
+   *
+   * @param text string The message you want to send on your story.
+   * @returns response e.g{ status: 200, t: 1586626288 } or false if you do not have access to this function
+   */
+  public async postStatus(text: string) {
+    return await this.page.evaluate(
+      ({ text }) => WAPI.postStatus(text, {}),
+      { text }
+    );
+  }
+
+/**
+ * Consumes a list of id strings of statuses to delete.
+ * @param statusesToDelete string [] | stringan array of ids of statuses to delete.
+ * @returns boolean. True if it worked.
+ */
+  public async deleteStatus(statusesToDelete: string | string []) {
+    return await this.page.evaluate(
+      ({ statusesToDelete }) => WAPI.deleteStatus(statusesToDelete),
+      { statusesToDelete }
+    );
+  }
+
+/**
+ * Deletes all your existing statuses.
+ * @returns boolean. True if it worked.
+ */
+  public async deleteAllStatus() {
+    return await this.page.evaluate(() => WAPI.deleteAllStatus());
+  }
+
+    /**
+     * Retreives all existing statuses.
+     */
+  public async getMyStatusArray() {
+    return await this.page.evaluate(() => WAPI.getMyStatusArray());
   }
 
   /**
@@ -602,18 +840,43 @@ export class Whatsapp {
 
 
   /**
+   * @param id The id of the conversation
+   * @param archive boolean true => archive, false => unarchive
+   * @return boolean true: worked, false: didnt work (probably already in desired state)
+   */
+  public async archiveChat(id: string, archive: boolean) {
+    return await this.page.evaluate(
+      ({ id, archive }) => WAPI.archiveChat(id, archive),
+      { id, archive }
+    );
+  }
+
+
+  /**
    * Forward an array of messages to a specific chat using the message ids or Objects
    *
    * @param {string} to '000000000000@c.us'
    * @param {string|array[Message | string]} messages this can be any mixture of message ids or message objects
    * @param {boolean} skipMyMessages This indicates whether or not to skip your own messages from the array
    */
-
-
   public async forwardMessages(to: string, messages: any, skipMyMessages: boolean) {
     return await this.page.evaluate(
       ({ to, messages, skipMyMessages }) => WAPI.forwardMessages(to, messages, skipMyMessages),
       { to, messages, skipMyMessages }
+    );
+  }
+
+/**
+ * Ghost forwarding is like a normal forward but as if it were sent from the host phone [i.e it doesn't show up as forwarded.]
+ * Any potential abuse of this method will see it become paywalled.
+ * @param to: Chat id to forward the message to
+ * @param messageId: message id of the message to forward. Please note that if it is not loaded, this will return false - even if it exists.
+ * @returns Promise<boolean>
+ */
+  public async ghostForward(to: string, messageId: string) {
+    return await this.page.evaluate(
+      ({ to, messageId }) => WAPI.ghostForward(to, messageId),
+      { to, messageId }
     );
   }
 
@@ -693,6 +956,38 @@ export class Whatsapp {
     );
   }
 
+
+/** Joins a group via the invite link, code, or message
+ * @param link This param is the string which includes the invite link or code. The following work:
+ * - Follow this link to join my WhatsApp group: https://chat.whatsapp.com/DHTGJUfFJAV9MxOpZO1fBZ
+ * - https://chat.whatsapp.com/DHTGJUfFJAV9MxOpZO1fBZ
+ * - DHTGJUfFJAV9MxOpZO1fBZ
+ * @returns Promise<string | boolean> Either false if it didn't work, or the group id.
+ */
+  public async joinGroupViaLink(link: string) {
+    return await this.page.evaluate(
+      link => WAPI.joinGroupViaLink(link),
+      link
+    );
+  }
+
+
+/**
+ * Block contact
+ * @param {string} id '000000000000@c.us'
+ */
+public async contactBlock(id: string) {
+  return await this.page.evaluate(id => WAPI.contactBlock(id),id)
+}
+
+/**
+ * Unblock contact
+ * @param {string} id '000000000000@c.us'
+ */
+public async contactUnblock(id: string) {
+  return await this.page.evaluate(id => WAPI.contactUnblock(id),id)
+}
+
   /**
    * Removes the host device from the group
    * @param groupId group id
@@ -701,6 +996,29 @@ export class Whatsapp {
     return await this.page.evaluate(
       groupId => WAPI.leaveGroup(groupId),
       groupId
+    );
+  }
+
+/**
+ * Extracts vcards from a message.This works on messages of typ `vcard` or `multi_vcard`
+ * @param msgId string id of the message to extract the vcards from
+ * @returns [vcard]
+ * ```
+ * [
+ * {
+ * displayName:"Contact name",
+ * vcard: "loong vcard string"
+ * }
+ * ]
+ * ```
+ * or false if no valid vcards found.
+ *
+ * Please use [vcf](https://www.npmjs.com/package/vcf) to convert a vcard string into a json object
+ */
+  public async getVCards(msgId: string) {
+    return await this.page.evaluate(
+      msgId => WAPI.getVCards(msgId),
+      msgId
     );
   }
 
@@ -754,6 +1072,22 @@ export class Whatsapp {
   }
 
   /**
+   * Retrieves the epoch timestamp of the time the contact was last seen. This will not work if:
+   * 1. They have set it so you cannot see their last seen via privacy settings.
+   * 2. You do not have an existing chat with the contact.
+   * 3. The chatId is for a group
+   * In both of those instances this method will return undefined.
+   * @param chatId The id of the chat.
+   * @returns number timestamp when chat was last online or undefined.
+   */
+  public async getLastSeen(chatId: string) {
+    return await this.page.evaluate(
+      chatId => WAPI.getLastSeen(chatId),
+      chatId
+    );
+  }
+
+  /**
    * Retrieves chat picture
    * @param chatId
    * @returns Url of the chat picture or undefined if there is no picture for the chat.
@@ -777,11 +1111,22 @@ export class Whatsapp {
     );
   }
 
+  /**
+   * Checks if a CHAT contact is online. Not entirely sure if this works with groups.
+   * @param chatId chat id: xxxxx@us.c
+   */
+  public async isChatOnline(chatId: string) {
+    return await this.page.evaluate(
+     chatId => WAPI.isChatOnline(chatId),
+      chatId
+    );
+  }
+
 
   /**
-    * Load more messages in chat object from server. Use this in a while loop
+    * Load more messages in chat object from server. Use this in a while loop. This should return up to 50 messages at a time
    * @param contactId
-   * @returns contact detial as promise
+   * @returns Message []
    */
   public async loadEarlierMessages(contactId: string) {
     return await this.page.evaluate(
@@ -824,6 +1169,54 @@ public async getStatus(contactId: string) {
     return await this.page.evaluate(
       contactId => WAPI.loadAllEarlierMessages(contactId),
       contactId
+    );
+  }
+
+  /**
+    * Delete the conversation from your whatsapp
+   * @param chatId
+   * @returns boolean
+   */
+  public async deleteChat(chatId: string) {
+    return await this.page.evaluate(
+      chatId => WAPI.deleteConversation(chatId),
+      chatId
+    );
+  }
+
+  /**
+    * Delete all messages from the chat.
+   * @param chatId
+   * @returns boolean
+   */
+  public async clearChat(chatId: string) {
+    return await this.page.evaluate(
+      chatId => WAPI.clearChat(chatId),
+      chatId
+    );
+  }
+
+  /**
+    * Retreives an invite link for a group chat. returns false if chat is not a group.
+   * @param chatId
+   * @returns Promise<string>
+   */
+  public async getGroupInviteLink(chatId: string) {
+    return await this.page.evaluate(
+      chatId => WAPI.getGroupInviteLink(chatId),
+      chatId
+    );
+  }
+
+  /**
+    * Revokes the current invite link for a group chat. Any previous links will stop working
+   * @param chatId
+   * @returns Promise<boolean>
+   */
+  public async revokeGroupInviteLink(chatId: string) {
+    return await this.page.evaluate(
+      chatId => WAPI.revokeGroupInviteLink(chatId),
+      chatId
     );
   }
 
@@ -882,6 +1275,20 @@ public async getStatus(contactId: string) {
    */
   public async getAllUnreadMessages() {
     return JSON.parse(await this.page.evaluate(() => WAPI.getAllUnreadMessages()));
+  }
+
+  /**
+   * Retrieves all unread Messages as indicated by the red dots in whatsapp web. This returns an array of objects and are structured like so:
+   * ```javascript
+   * [{
+   * "id": "000000000000@g.us", //the id of the chat
+   * "indicatedNewMessages": [] //array of messages, not including any messages by the host phone
+   * }]
+   * ```
+   * @returns list of messages
+   */
+  public async getIndicatedNewMessages() {
+    return JSON.parse(await this.page.evaluate(() => WAPI.getIndicatedNewMessages()));
   }
 
   /**
@@ -947,12 +1354,50 @@ public async getStatus(contactId: string) {
    * @param {*} idParticipant '000000000000@c.us'
    * @param {*} done - function - Callback function to be called when a new message arrives.
    */
-
   public async removeParticipant(idGroup: string, idParticipant: string) {
     return await this.page.evaluate(
       ({ idGroup, idParticipant }) => WAPI.removeParticipant(idGroup, idParticipant),
       { idGroup, idParticipant }
     );
+  }
+
+/** Change the icon for the group chat
+ * @param groupId 123123123123_1312313123@g.us The id of the group
+ * @param imgData 'data:image/jpeg;base64,...` The base 64 data uri. Make sure this is a small img (128x128), otherwise it will fail.
+ * @returns boolean true if it was set, false if it didn't work. It usually doesn't work if the image file is too big.
+ */
+  public async setGroupIcon(groupId: string, b64: string) {
+    const buff = Buffer.from(b64.replace(/^data:image\/(png|gif|jpeg);base64,/,''), 'base64');
+    const mimeInfo = base64MimeType(b64);
+    console.log("setGroupIcon -> mimeInfo", mimeInfo)
+    if(!mimeInfo || mimeInfo.includes("image")){
+      //no matter what, convert to jpeg, resize + autoscale to width 48 px
+      const scaledImageBuffer = await sharp(buff,{ failOnError: false })
+      .resize({ height: 300 })
+      .toBuffer();
+      const jpeg = sharp(scaledImageBuffer,{ failOnError: false }).jpeg();
+      const imgData = `data:jpeg;base64,${(await jpeg.toBuffer()).toString('base64')}`;
+      console.log("setGroupIcon -> imgData", imgData)
+      return await this.page.evaluate(
+        ({ groupId, imgData }) => WAPI.setGroupIcon(groupId, imgData),
+        { groupId, imgData }
+      );
+    }
+  }
+
+/** Change the icon for the group chat
+ * @param groupId 123123123123_1312313123@g.us The id of the group
+ * @param url'https://upload.wikimedia.org/wikipedia/commons/3/38/JPEG_example_JPG_RIP_001.jpg' The url of the image. Make sure this is a small img (128x128), otherwise it will fail.
+ * @param requestConfig {} By default the request is a get request, however you can override that and many other options by sending this parameter. You can read more about this parameter here: https://github.com/axios/axios#request-config
+ * @returns boolean true if it was set, false if it didn't work. It usually doesn't work if the image file is too big.
+ */
+  public async setGroupIconByUrl(groupId: string, url: string, requestConfig: any = {}) {
+    try {
+      const base64 = await getBase64(url, requestConfig);
+       return await this.setGroupIcon(groupId,base64);
+     } catch(error) {
+       return error;
+     }
   }
 
   /**
@@ -987,7 +1432,6 @@ public async getStatus(contactId: string) {
   * Demote Admin of Group
   * @param {*} idGroup '0000000000-00000000@g.us'
   * @param {*} idParticipant '000000000000@c.us'
-  * @param {*} done - function - Callback function to be called when a new message arrives.
   */
   public async demoteParticipant(idGroup: string, idParticipant: string) {
     return await this.page.evaluate(
@@ -995,6 +1439,32 @@ public async getStatus(contactId: string) {
       { idGroup, idParticipant }
     );
   }
+
+  /**
+  * Change who can and cannot speak in a group
+  * @param groupId '0000000000-00000000@g.us' the group id.
+  * @param onlyAdmins boolean set to true if you want only admins to be able to speak in this group. false if you want to allow everyone to speak in the group
+  * @returns boolean true if action completed successfully.
+  */
+  public async setGroupToAdminsOnly(groupId: string, onlyAdmins: boolean) {
+    return await this.page.evaluate(
+      ({ groupId, onlyAdmins }) => WAPI.setGroupToAdminsOnly(groupId, onlyAdmins),
+      { groupId, onlyAdmins }
+    );
+  }
+
+  /**
+  * Change who can and cannot edit a groups details
+  * @param groupId '0000000000-00000000@g.us' the group id.
+  * @param onlyAdmins boolean set to true if you want only admins to be able to speak in this group. false if you want to allow everyone to speak in the group
+  * @returns boolean true if action completed successfully.
+  */
+ public async setGroupEditToAdminsOnly(groupId: string, onlyAdmins: boolean) {
+  return await this.page.evaluate(
+    ({ groupId, onlyAdmins }) => WAPI.setGroupEditToAdminsOnly(groupId, onlyAdmins),
+    { groupId, onlyAdmins }
+  );
+}
 
   /**
   * Get Admins of a Group
@@ -1008,12 +1478,36 @@ public async getStatus(contactId: string) {
   }
 
   /**
+<<<<<<< HEAD
    * This function takes an image and sends it as a sticker to the recipient. This is helpful for sending semi-ephemeral things like QR codes.
-   * The advantage is that it will not show up in the recipients gallery. This function automatiicaly converts images to the required webp format.
-   * @param b64: This is the base64 string formatted with data URI. You can also send a plain base64 string but it may result in an error as the function will not be able to determine the filetype before sending.
+=======
+   * Sends a sticker from a given URL
    * @param to: The recipient id.
+   * @param url: The url of the image
+   * @param requestConfig {} By default the request is a get request, however you can override that and many other options by sending this parameter. You can read more about this parameter here: https://github.com/axios/axios#request-config
    */
-  public async sendImageAsSticker(b64: string,to: string){
+  public async sendStickerfromUrl(to: string, url: string, requestConfig: any = {}) {
+    try {
+      const base64 = await getBase64(url, requestConfig);
+      return await this.sendImageAsSticker(to, base64);
+     } catch(error) {
+       console.log('Something went wrong', error);
+       return error;
+     }
+  }
+
+  /**
+   * This function takes an image and sends it as a sticker to the recipient. This is helpful for sending semi-ephemeral things like QR codes.
+>>>>>>> d001c8c02c4cdee43e0e3db4a71499f7d7478205
+   * The advantage is that it will not show up in the recipients gallery. This function automatiicaly converts images to the required webp format.
+   * @param to: The recipient id.
+   * @param b64: This is the base64 string formatted with data URI. You can also send a plain base64 string but it may result in an error as the function will not be able to determine the filetype before sending.
+   */
+  public async sendImageAsSticker(to: string, b64: string){
+    if(!this._loadedModules.includes('jsSha')) {
+      await this.page.evaluate(x=>eval(x),`'use strict';(function(I){function w(c,a,d){var l=0,b=[],g=0,f,n,k,e,h,q,y,p,m=!1,t=[],r=[],u,z=!1;d=d||{};f=d.encoding||"UTF8";u=d.numRounds||1;if(u!==parseInt(u,10)||1>u)throw Error("numRounds must a integer >= 1");if(0===c.lastIndexOf("SHA-",0))if(q=function(b,a){return A(b,a,c)},y=function(b,a,l,f){var g,e;if("SHA-224"===c||"SHA-256"===c)g=(a+65>>>9<<4)+15,e=16;else throw Error("Unexpected error in SHA-2 implementation");for(;b.length<=g;)b.push(0);b[a>>>5]|=128<<24-a%32;a=a+l;b[g]=a&4294967295;b[g-1]=a/4294967296|0;l=b.length;for(a=0;a<l;a+=e)f=A(b.slice(a,a+e),f,c);if("SHA-224"===c)b=[f[0],f[1],f[2],f[3],f[4],f[5],f[6]];else if("SHA-256"===c)b=f;else throw Error("Unexpected error in SHA-2 implementation");return b},p=function(b){return b.slice()},"SHA-224"===c)h=512,e=224;else if("SHA-256"===c)h=512,e=256;else throw Error("Chosen SHA variant is not supported");else throw Error("Chosen SHA variant is not supported");k=B(a,f);n=x(c);this.setHMACKey=function(b,a,g){var e;if(!0===m)throw Error("HMAC key already set");if(!0===z)throw Error("Cannot set HMAC key after calling update");f=(g||{}).encoding||"UTF8";a=B(a,f)(b);b=a.binLen;a=a.value;e=h>>>3;g=e/4-1;if(e<b/8){for(a=y(a,b,0,x(c));a.length<=g;)a.push(0);a[g]&=4294967040}else if(e>b/8){for(;a.length<=g;)a.push(0);a[g]&=4294967040}for(b=0;b<=g;b+=1)t[b]=a[b]^909522486,r[b]=a[b]^1549556828;n=q(t,n);l=h;m=!0};this.update=function(a){var c,f,e,d=0,p=h>>>5;c=k(a,b,g);a=c.binLen;f=c.value;c=a>>>5;for(e=0;e<c;e+=p)d+h<=a&&(n=q(f.slice(e,e+p),n),d+=h);l+=d;b=f.slice(d>>>5);g=a%h;z=!0};this.getHash=function(a,f){var d,h,k,q;if(!0===m)throw Error("Cannot call getHash after setting HMAC key");k=C(f);switch(a){case"HEX":d=function(a){return D(a,e,k)};break;case"B64":d=function(a){return E(a,e,k)};break;case"BYTES":d=function(a){return F(a,e)};break;case"ARRAYBUFFER":try{h=new ArrayBuffer(0)}catch(v){throw Error("ARRAYBUFFER not supported by this environment");}d=function(a){return G(a,e)};break;default:throw Error("format must be HEX, B64, BYTES, or ARRAYBUFFER");}q=y(b.slice(),g,l,p(n));for(h=1;h<u;h+=1)q=y(q,e,0,x(c));return d(q)};this.getHMAC=function(a,f){var d,k,t,u;if(!1===m)throw Error("Cannot call getHMAC without first setting HMAC key");t=C(f);switch(a){case"HEX":d=function(a){return D(a,e,t)};break;case"B64":d=function(a){return E(a,e,t)};break;case"BYTES":d=function(a){return F(a,e)};break;case"ARRAYBUFFER":try{d=new ArrayBuffer(0)}catch(v){throw Error("ARRAYBUFFER not supported by this environment");}d=function(a){return G(a,e)};break;default:throw Error("outputFormat must be HEX, B64, BYTES, or ARRAYBUFFER");}k=y(b.slice(),g,l,p(n));u=q(r,x(c));u=y(k,e,h,u);return d(u)}}function m(){}function D(c,a,d){var l="";a/=8;var b,g;for(b=0;b<a;b+=1)g=c[b>>>2]>>>8*(3+b%4*-1),l+="0123456789abcdef".charAt(g>>>4&15)+"0123456789abcdef".charAt(g&15);return d.outputUpper?l.toUpperCase():l}function E(c,a,d){var l="",b=a/8,g,f,n;for(g=0;g<b;g+=3)for(f=g+1<b?c[g+1>>>2]:0,n=g+2<b?c[g+2>>>2]:0,n=(c[g>>>2]>>>8*(3+g%4*-1)&255)<<16|(f>>>8*(3+(g+1)%4*-1)&255)<<8|n>>>8*(3+(g+2)%4*-1)&255,f=0;4>f;f+=1)8*g+6*f<=a?l+="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".charAt(n>>>6*(3-f)&63):l+=d.b64Pad;return l}function F(c,a){var d="",l=a/8,b,g;for(b=0;b<l;b+=1)g=c[b>>>2]>>>8*(3+b%4*-1)&255,d+=String.fromCharCode(g);return d}function G(c,a){var d=a/8,l,b=new ArrayBuffer(d),g;g=new Uint8Array(b);for(l=0;l<d;l+=1)g[l]=c[l>>>2]>>>8*(3+l%4*-1)&255;return b}function C(c){var a={outputUpper:!1,b64Pad:"=",shakeLen:-1};c=c||{};a.outputUpper=c.outputUpper||!1;!0===c.hasOwnProperty("b64Pad")&&(a.b64Pad=c.b64Pad);if("boolean"!==typeof a.outputUpper)throw Error("Invalid outputUpper formatting option");if("string"!==typeof a.b64Pad)throw Error("Invalid b64Pad formatting option");return a}function B(c,a){var d;switch(a){case"UTF8":case"UTF16BE":case"UTF16LE":break;default:throw Error("encoding must be UTF8, UTF16BE, or UTF16LE");}switch(c){case"HEX":d=function(a,b,c){var f=a.length,d,k,e,h,q;if(0!==f%2)throw Error("String of HEX type must be in byte increments");b=b||[0];c=c||0;q=c>>>3;for(d=0;d<f;d+=2){k=parseInt(a.substr(d,2),16);if(isNaN(k))throw Error("String of HEX type contains invalid characters");h=(d>>>1)+q;for(e=h>>>2;b.length<=e;)b.push(0);b[e]|=k<<8*(3+h%4*-1)}return{value:b,binLen:4*f+c}};break;case"TEXT":d=function(c,b,d){var f,n,k=0,e,h,q,m,p,r;b=b||[0];d=d||0;q=d>>>3;if("UTF8"===a)for(r=3,e=0;e<c.length;e+=1)for(f=c.charCodeAt(e),n=[],128>f?n.push(f):2048>f?(n.push(192|f>>>6),n.push(128|f&63)):55296>f||57344<=f?n.push(224|f>>>12,128|f>>>6&63,128|f&63):(e+=1,f=65536+((f&1023)<<10|c.charCodeAt(e)&1023),n.push(240|f>>>18,128|f>>>12&63,128|f>>>6&63,128|f&63)),h=0;h<n.length;h+=1){p=k+q;for(m=p>>>2;b.length<=m;)b.push(0);b[m]|=n[h]<<8*(r+p%4*-1);k+=1}else if("UTF16BE"===a||"UTF16LE"===a)for(r=2,n="UTF16LE"===a&&!0||"UTF16LE"!==a&&!1,e=0;e<c.length;e+=1){f=c.charCodeAt(e);!0===n&&(h=f&255,f=h<<8|f>>>8);p=k+q;for(m=p>>>2;b.length<=m;)b.push(0);b[m]|=f<<8*(r+p%4*-1);k+=2}return{value:b,binLen:8*k+d}};break;case"B64":d=function(a,b,c){var f=0,d,k,e,h,q,m,p;if(-1===a.search(/^[a-zA-Z0-9=+\/]+$/))throw Error("Invalid character in base-64 string");k=a.indexOf("=");a=a.replace(/\=/g,"");if(-1!==k&&k<a.length)throw Error("Invalid '=' found in base-64 string");b=b||[0];c=c||0;m=c>>>3;for(k=0;k<a.length;k+=4){q=a.substr(k,4);for(e=h=0;e<q.length;e+=1)d="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".indexOf(q[e]),h|=d<<18-6*e;for(e=0;e<q.length-1;e+=1){p=f+m;for(d=p>>>2;b.length<=d;)b.push(0);b[d]|=(h>>>16-8*e&255)<<8*(3+p%4*-1);f+=1}}return{value:b,binLen:8*f+c}};break;case"BYTES":d=function(a,b,c){var d,n,k,e,h;b=b||[0];c=c||0;k=c>>>3;for(n=0;n<a.length;n+=1)d=a.charCodeAt(n),h=n+k,e=h>>>2,b.length<=e&&b.push(0),b[e]|=d<<8*(3+h%4*-1);return{value:b,binLen:8*a.length+c}};break;case"ARRAYBUFFER":try{d=new ArrayBuffer(0)}catch(l){throw Error("ARRAYBUFFER not supported by this environment");}d=function(a,b,c){var d,n,k,e,h;b=b||[0];c=c||0;n=c>>>3;h=new Uint8Array(a);for(d=0;d<a.byteLength;d+=1)e=d+n,k=e>>>2,b.length<=k&&b.push(0),b[k]|=h[d]<<8*(3+e%4*-1);return{value:b,binLen:8*a.byteLength+c}};break;default:throw Error("format must be HEX, TEXT, B64, BYTES, or ARRAYBUFFER");}return d}function r(c,a){return c>>>a|c<<32-a}function J(c,a,d){return c&a^~c&d}function K(c,a,d){return c&a^c&d^a&d}function L(c){return r(c,2)^r(c,13)^r(c,22)}function M(c){return r(c,6)^r(c,11)^r(c,25)}function N(c){return r(c,7)^r(c,18)^c>>>3}function O(c){return r(c,17)^r(c,19)^c>>>10}function P(c,a){var d=(c&65535)+(a&65535);return((c>>>16)+(a>>>16)+(d>>>16)&65535)<<16|d&65535}function Q(c,a,d,l){var b=(c&65535)+(a&65535)+(d&65535)+(l&65535);return((c>>>16)+(a>>>16)+(d>>>16)+(l>>>16)+(b>>>16)&65535)<<16|b&65535}function R(c,a,d,l,b){var g=(c&65535)+(a&65535)+(d&65535)+(l&65535)+(b&65535);return((c>>>16)+(a>>>16)+(d>>>16)+(l>>>16)+(b>>>16)+(g>>>16)&65535)<<16|g&65535}function x(c){var a=[],d;if(0===c.lastIndexOf("SHA-",0))switch(a=[3238371032,914150663,812702999,4144912697,4290775857,1750603025,1694076839,3204075428],d=[1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225],c){case"SHA-224":break;case"SHA-256":a=d;break;case"SHA-384":a=[new m,new m,new m,new m,new m,new m,new m,new m];break;case"SHA-512":a=[new m,new m,new m,new m,new m,new m,new m,new m];break;default:throw Error("Unknown SHA variant");}else throw Error("No SHA variants supported");return a}function A(c,a,d){var l,b,g,f,n,k,e,h,m,r,p,w,t,x,u,z,A,B,C,D,E,F,v=[],G;if("SHA-224"===d||"SHA-256"===d)r=64,w=1,F=Number,t=P,x=Q,u=R,z=N,A=O,B=L,C=M,E=K,D=J,G=H;else throw Error("Unexpected error in SHA-2 implementation");d=a[0];l=a[1];b=a[2];g=a[3];f=a[4];n=a[5];k=a[6];e=a[7];for(p=0;p<r;p+=1)16>p?(m=p*w,h=c.length<=m?0:c[m],m=c.length<=m+1?0:c[m+1],v[p]=new F(h,m)):v[p]=x(A(v[p-2]),v[p-7],z(v[p-15]),v[p-16]),h=u(e,C(f),D(f,n,k),G[p],v[p]),m=t(B(d),E(d,l,b)),e=k,k=n,n=f,f=t(g,h),g=b,b=l,l=d,d=t(h,m);a[0]=t(d,a[0]);a[1]=t(l,a[1]);a[2]=t(b,a[2]);a[3]=t(g,a[3]);a[4]=t(f,a[4]);a[5]=t(n,a[5]);a[6]=t(k,a[6]);a[7]=t(e,a[7]);return a}var H;H=[1116352408,1899447441,3049323471,3921009573,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1925078388,2162078206,2614888103,3248222580,3835390401,4022224774,264347078,604807628,770255983,1249150122,1555081692,1996064986,2554220882,2821834349,2952996808,3210313671,3336571891,3584528711,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,2177026350,2456956037,2730485921,2820302411,3259730800,3345764771,3516065817,3600352804,4094571909,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,2227730452,2361852424,2428436474,2756734187,3204031479,3329325298];"function"===typeof define&&define.amd?define(function(){return w}):"undefined"!==typeof exports?("undefined"!==typeof module&&module.exports&&(module.exports=w),exports=w):I.jsSHA=w})(this);`)
+      this._loadedModules.push('jsSha');
+    }
     const buff = Buffer.from(b64.replace(/^data:image\/(png|gif|jpeg);base64,/,''), 'base64');
     const mimeInfo = base64MimeType(b64);
     if(!mimeInfo || mimeInfo.includes("image")){
