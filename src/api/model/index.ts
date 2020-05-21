@@ -1,4 +1,4 @@
-import { Whatsapp } from '../..';
+import { Client } from '../..';
 
 export { Chat } from './chat';
 export { Contact } from './contact';
@@ -39,7 +39,7 @@ export enum Events {
 };
 
 /**
- * WhatsApp state
+ * Session state
  * @readonly
  * @enum {string}
  */
@@ -59,23 +59,38 @@ export enum WAState {
 };
 
 export interface SessionData {
-    WABrowserId ?: String,
-    WASecretBundle ?: String,
-    WAToken1 ?: String,
-    WAToken2 ?: String,
+    WABrowserId ?: string,
+    WASecretBundle ?: string,
+    WAToken1 ?: string,
+    WAToken2 ?: string,
 }
 
 export interface DevTools {
     /**
      * Username for devtools
      */
-    user : String,
+    user : string,
     /**
      * Password for devtools
      */
-    pass : String
+    pass : string
 }
 
+export interface ProxyServerCredentials {
+    /**
+    * Proxy Server address. This can include the port e.g '127.0.0.1:5005'
+    */
+    address: string,
+    /**
+    * Username for Proxy Server authentication
+    */
+    username : string,
+    /**
+    * Password for Proxy Server authentication
+    */
+    password : string,        
+}
+    
 export interface ConfigObject {
     /**
      * JSON object that is required to migrate a session from one instance to another or ot just restart an existing instance.
@@ -90,6 +105,14 @@ export interface ConfigObject {
      * 
      */
     sessionData ?: SessionData,
+    /**
+     * The path relative to the current working directory (i.e where you run the command to start your process). This will be used to store and read your `.data.json` files. defualt to ''
+     */
+    sessionDataPath ?: string,
+    /**
+     * Disable cors see: https://pptr.dev/#?product=Puppeteer&version=v3.0.4&show=api-pagesetbypasscspenabled If you are having an issue with sending media try to set this to true. Otherwise leave it set to falsedefualt to false
+     */
+    bypassCSP ?: boolean,
     /**
      * This allows you to pass any array of custom chrome/chromium argument strings to the puppeteer instance.
      * You can find all possible arguements [here](https://peter.sh/experiments/chromium-command-line-switches/).
@@ -106,26 +129,17 @@ export interface ConfigObject {
     sessionId ?: string,
     /**
      * In order to unlock the functionality to send texts to unknown numbers, you need an License key.
-     * One License Key is valid for each number. Each License Key is £5 per month or £50 per year.
+     * One License Key is valid for each number. Each License Key is £10 per month or £100 per year.
      * 
-     * For now the process happens through [Buy Me A Coffee](https://www.buymeacoffee.com/smashah) (BMAC)
-     * 
-     * How to get an License key:
-     * 1. Go to https://www.buymeacoffee.com/smashah
-     * 2. Click on 'Membership'.
-     * 3. Select your payment preference (monthly/annually)
-     * 5. Add the number you want to assign to the License Key in the notes, along with the use case for this functionality.
-     * 6. Select "Make this message private."
-     * 7. Complete the process for membership.
-     * 8. I will then send you the License key via email.
+     * Please check README for instructions on how to get a license key.
      * 
      * Notes:
-     * 1. You can change the number assigned to that License Key at any time, just message me the new number on the private discord channel or on BMAC.
+     * 1. You can change the number assigned to that License Key at any time, just message me the new number on the private discord channel.
      * 2. In order to cancel your License Key, simply stop your membership.
      */
-    licenseKey ?: string,
+    licenseKey ?: string | string[],
     /**
-     * You may set a custom user agent to prevent detection by WhatsApp. However, due to recent developments, this is not really neccessary any more.
+     * You may set a custom user agent. However, due to recent developments, this is not really neccessary any more.
      */
     customUserAgent ?: string,
     /**
@@ -134,7 +148,7 @@ export interface ConfigObject {
      */
     devtools ?: boolean | DevTools,
     /**
-     * Setting this to true will block any network calls to WhatsApp's crash log servers. This should keep anything you do under the radar.
+     * Setting this to true will block any network calls to crash log servers. This should keep anything you do under the radar. default is true
      */
     blockCrashLogs ?: boolean,
     /**
@@ -160,7 +174,7 @@ export interface ConfigObject {
     /**
      * This determines how long the process should wait for a QR code to be scanned before killing the process entirely.
      */
-    killTimer ?: number,
+    qrTimeout ?: number,
     /**
      * Some features, like video upload, do not work without a chrome instance. Puppeteer only provides a chromium instance out of the box. Set this to the path of your chrome instance or you can use `useChrome:true` to automatically detect a chrome instance for you.
      */
@@ -170,10 +184,18 @@ export interface ConfigObject {
      */
     useChrome ?: boolean,
     /**
+     * If sent, adds a call to waPage.authenticate with those credentials.
+     */
+    proxyServerCredentials?: ProxyServerCredentials,
+    /**
+     * If true, skips logging the QR Code to the console. Default is false.
+     */
+    qrLogSkip?: boolean;
+    /**
      * If set, the program will try to recreate itself when the page crashes. You have to pass the function that you want called upon restart. Please note that when the page crashes you may miss some messages.
      * E.g:
      * ```javascript
-     * const start  = async (client: Whatsapp) => {...}
+     * const start  = async (client: Client) => {...}
      * create({
      * ...
      * restartOnCrash: start,
@@ -181,7 +203,26 @@ export interface ConfigObject {
      * })
      * ```
      */
-    restartOnCrash ?: (value: Whatsapp) => any | Function,
+    restartOnCrash ?: (value: Client) => any | Function,
+    /**
+     * default: false
+     * Setting this to true will simplify logs for use within docker containers by disabling spins (will still print raw messages).
+     */
+    disableSpins ?: boolean,
+    /**
+     * default: false
+     * If true, this will log any console messages from the browser.
+     */
+    logConsole ?: boolean
+    /**
+     * default: false
+     * If true, this will log any error messages from the browser instance
+     */
+    logConsoleErrors ?: boolean,
+    /**
+    *This determines how long the process should wait for the session authentication. If exceeded, checks if phone is out of reach (turned of or without internet connection) and throws an error.
+    */
+    authTimeout?: number;
     // @private
     [x: string]: any 
 }

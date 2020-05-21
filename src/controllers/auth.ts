@@ -32,10 +32,18 @@ export const isInsideChat = (waPage: puppeteer.Page) => {
   );
 };
 
+export const phoneIsOutOfReach = async (waPage: puppeteer.Page) => {
+  return await waPage
+    .waitForFunction(
+      'document.querySelector("body").innerText.includes("Trying to reach phone")',
+      { timeout: 0, polling: 'mutation' }
+    );
+};
+
     //@ts-ignore
 const checkIfCanAutoRefresh = (waPage: puppeteer.Page) => waPage.evaluate(() => {if(window.Store && window.Store.State) {window.Store.State.default.state="UNPAIRED";window.Store.State.default.run();return true;} else {return false;}})
 
-export async function retrieveQR(waPage: puppeteer.Page, sessionId?:string, autoRefresh:boolean=false,throwErrorOnTosBlock:boolean=false) {
+export async function retrieveQR(waPage: puppeteer.Page, sessionId?:string, autoRefresh:boolean=false,throwErrorOnTosBlock:boolean=false, qrLogSkip: boolean = false) {
   const qrEv = new EvEmitter(sessionId,'qr');
   if (autoRefresh) {
     const evalResult = await checkIfCanAutoRefresh(waPage)
@@ -46,10 +54,12 @@ export async function retrieveQR(waPage: puppeteer.Page, sessionId?:string, auto
   }
   let targetElementFound;
   while (!targetElementFound) {
-    targetElementFound = await waPage.waitForSelector( "canvas[aria-label='Scan me!']",{
-      timeout: 10000,
-      visible: true,
-      });
+    try {
+      targetElementFound = await waPage.waitForSelector( "canvas[aria-label='Scan me!']",{
+        timeout: 10000,
+        visible: true,
+        });
+    } catch(error) {}
   }
   let qrData;
   while(!qrData){
@@ -57,6 +67,6 @@ export async function retrieveQR(waPage: puppeteer.Page, sessionId?:string, auto
   }
   const qrCode = await waPage.evaluate(`document.querySelector("canvas[aria-label='Scan me!']").toDataURL()`);
   qrEv.emit(qrCode);
-  qrcode.generate(qrData,{small: true});
+  if(!qrLogSkip) qrcode.generate(qrData,{small: true});
   return true;
 }

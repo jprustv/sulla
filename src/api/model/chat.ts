@@ -28,11 +28,11 @@ export interface Chat {
   unreadCount: number;
   ack?: any;
   /**
-   * @deprecated This is unreliable. Use the method [`isChatOnline`](https://open-wa.github.io/wa-automate-nodejs/classes/whatsapp.html#ischatonline) instead.
+   * @deprecated This is unreliable. Use the method [`isChatOnline`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#ischatonline) instead.
    */
   isOnline?: any;
   /**
-   * @deprecated This is unreliable. Use the method [`getLastSeen`](https://open-wa.github.io/wa-automate-nodejs/classes/whatsapp.html#getlastseen) instead.
+   * @deprecated This is unreliable. Use the method [`getLastSeen`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#getlastseen) instead.
    */
   lastSeen?: any;
 }
@@ -45,6 +45,10 @@ export interface LiveLocationChangedEvent {
   lastUpdated: number,
   accuracy: number,
   degrees: any,
+  /**
+   * The message id that was sent when the liveLocation session was started.
+   */
+  msgId?: string
 }
 
 export enum ChatState {

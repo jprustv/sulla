@@ -1,13 +1,13 @@
 // const wa = require('../dist/index');
 // var create = require("@open-wa/wa-automate").create;
-// import { create, Whatsapp, decryptMedia, ev } from '../dist/index';
-import { create, Whatsapp, decryptMedia, ev, smartUserAgent } from '../src/index';
+// import { create, Client, decryptMedia, ev } from '../dist/index';
+import { create, Client, decryptMedia, ev, smartUserAgent } from '../src/index';
 const mime = require('mime-types');
 const fs = require('fs');
 const uaOverride = 'WhatsApp/2.16.352 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Safari/605.1.15';
 const tosBlockGuaranteed = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/79.0.3945.88 Safari/537.36";
 const ON_DEATH = require('death');
-let globalClient:Whatsapp;
+let globalClient:Client;
 
 ON_DEATH(async function(signal, err) {
   console.log('killing session');
@@ -35,7 +35,7 @@ ev.on('sessionData.**', async (sessionData, sessionId) =>{
   console.log("----------")
 })
 
-async function start(client: Whatsapp) {
+async function start(client: Client) {
   globalClient=client;
   console.log('starting');
   const me = await client.getMe();
@@ -68,7 +68,10 @@ async function start(client: Whatsapp) {
   // const allmsgs = await client.loadAndGetAllMessagesInChat('XXXXXXXX-YYYYYYYY@g.us",true,false);
   // console.log("TCL: start -> allMessages", allmsgs.length);
 
-  client.onAnyMessage(message=>console.log(message.type));
+  client.onAnyMessage(message=>{
+    console.log(message.type)
+    if(message.body==='DELETE') client.deleteMessage(message.from,message.id,false)
+  });
   // client.onParticipantsChanged("XXXXXXXXXX-YYYYYYYYY@g.us",x=>console.log(x))
   client.onMessage(async message => {
     try {
@@ -109,6 +112,7 @@ async function start(client: Whatsapp) {
         console.log('The file was saved!');
       });
     } else if (message.type==="location") {
+      if(message.shareDuration) console.log('This user has started sharing their live location', message.author || message.from)
       console.log("TCL: location -> message", message.lat, message.lng, message.loc)
       await client.sendLocation(message.from, `${message.lat}`, `${message.lng}`, `Youre are at ${message.loc}`)
     } else {
@@ -147,12 +151,12 @@ create({
   restartOnCrash: start,
   headless:false,
   throwErrorOnTosBlock:true,
-  killTimer:40,
+  qrTimeout:40,
+  authTimeout:40,
   autoRefresh:true, //default to true
   qrRefreshS:15, //please note that if this is too long then your qr code scan may end up being invalid. Generally qr codes expire every 15 seconds.
   // cacheEnabled:false,
   // devtools:true,
-  // blockCrashLogs:true,
   //OR
   // devtools:{
   //   user:'admin',
