@@ -13,7 +13,7 @@
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/open-wa/wa-automate-nodejs.svg)](http://isitmaintained.com/project/open-wa/wa-automate-nodejs "Average time to resolve an issue")
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/open-wa/wa-automate-nodejs.svg)](http://isitmaintained.com/project/open-wa/wa-automate-nodejs "Percentage of issues still open")
 
-<a href="https://discord.gg/dnpp72a"><img src="https://img.shields.io/discord/661438166758195211?color=blueviolet&label=discord&style=flat" /></a> ![WhatsApp_Web 2.2019.8](https://img.shields.io/badge/WhatsApp_Web-2.2019.8-brightgreen.svg)
+<a href="https://discord.gg/dnpp72a"><img src="https://img.shields.io/discord/661438166758195211?color=blueviolet&label=discord&style=flat" /></a> ![WhatsApp_Web 2.2023.2](https://img.shields.io/badge/WhatsApp_Web-2.2023.2-brightgreen.svg)
 
 [![Buy me a coffee][buymeacoffee-shield]][buymeacoffee]
 [![Consulting Request][consult-shield]][consult]
@@ -90,7 +90,7 @@ With the constant updates from WA. It is advisable to always use the latest vers
 
 ### Insiders Program
 
-open-wa is at the forefront of open source WA developmentand runs on donations from backers. To encourage donations, backers have access to exclusive features with an [Insiders Program license key](https://gumroad.com/l/BTMt?tier=Insiders%20Program).
+open-wa is at the forefront of open source WA developmentand runs on donations from backers. To encourage donations, backers have access to exclusive features with an [Insiders Program license key](https://gumroad.com/l/BTMt).
 
 
 | Function                          | Description |
@@ -99,6 +99,11 @@ open-wa is at the forefront of open source WA developmentand runs on donations f
 | [`setGroupEditToAdminsOnly`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#setGroupEditToAdminsOnly)                   | Changes group setting so only admins can edit group info            |
 | [`setProfilePic`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#setProfilePic)                   | Change the host phones profile picture           |
 | [`onRemovedFromGroup`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#onRemovedFromGroup)                   | Detect when host phone is removed from a group           |
+| [`onContactAdded`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#onContactAdded)                   | Detect when host phone adds a new contact           |
+| [`getCommonGroups`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#getCommonGroups)                   | Retreive all common groups between the host device and a conttact           |
+| [`clearAllChats`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#clearAllChats)                   | Easily clear memory by clearing all chats of all messages on the host device and WA Web           |
+| [`sendReplyWithMentions`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#sendReplyWithMentions)                   | Send a reply to a message with mentions           |
+| [`onChatOpened`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#onChatOpened)                   | Detect when a chat is selected in the UI           |
 
 [Learn more about license keys.](https://github.com/open-wa/wa-automate-nodejs#license-key)
 

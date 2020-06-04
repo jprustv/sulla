@@ -12,6 +12,13 @@ import { ParticipantChangedEventModel } from './model/group-metadata';
 import { useragent } from '../config/puppeteer.config'
 import sharp from 'sharp';
 
+enum namespace {
+  Chat = 'Chat',
+  Msg = 'Msg',
+  Contact = 'Contact',
+  GroupMetadata = 'GroupMetadata'
+}
+
 export const getBase64 = async (url: string, optionsOverride: any = {} ) => {
   try {
     const res = await axios({
@@ -54,13 +61,19 @@ declare module WAPI {
   const onIncomingCall: (callback: Function) => any;
   const onAddedToGroup: (callback: Function) => any;
   const onBattery: (callback: Function) => any;
+  const onPlugged: (callback: Function) => any;
+  const onStory: (callback: Function) => any;
+  const setChatBackgroundColourHex: (hex: string) => boolean;
+  const darkMode: (activate: boolean) => boolean;
   const onParticipantsChanged: (groupId: string, callback: Function) => any;
   const _onParticipantsChanged: (groupId: string, callback: Function) => any;
   const onLiveLocation: (chatId: string, callback: Function) => any;
+  const getSingleProperty: (namespace: string, id: string, property : string) => any;
   const sendMessage: (to: string, content: string) => Promise<string>;
 const sendMessageToID: (to: string, content: string) => void;
   const downloadFileWithCredentials: (url: string) => Promise<string>;
   const sendMessageWithMentions: (to: string, content: string) => Promise<string>;
+  const sendReplyWithMentions: (to: string, content: string, replyMessageId: string) => Promise<string>;
   const postTextStatus: (text: string, textRgba: string, backgroundRgba: string, font: string) => Promise<string | boolean>;
   const postImageStatus: (data: string, caption: string) => Promise<string | boolean>;
   const postVideoStatus: (data: string, caption: string) => Promise<string | boolean>;
@@ -76,6 +89,7 @@ const sendMessageToID: (to: string, content: string) => void;
   const setProfilePic: (data: string) => Promise<boolean>;
   const setPresence: (available: boolean) => void;
   const getStatus: (contactId: string) => void;
+  const getCommonGroups: (contactId: string) => Promise<{id:string,title:string}[]>;
   const forceUpdateLiveLocation: (chatId: string) => Promise<LiveLocationChangedEvent []> | boolean;
   const setGroupIcon: (groupId: string, imgData: string) => Promise<boolean>;
   const getGroupAdmins: (groupId: string) => Promise<Contact[]>;
@@ -88,6 +102,7 @@ const sendMessageToID: (to: string, content: string) => void;
   const sendImageAsSticker: (webpBase64: string, to: string, metadata?: any) => Promise<any>;
   const createGroup: (groupName: string, contactId: string|string[]) => Promise<any>;
   const sendSeen: (to: string) => Promise<boolean>;
+  const markAsUnread: (to: string) => Promise<boolean>;
   const isChatOnline: (id: string) => Promise<boolean>;
   const sendLinkWithAutoPreview: (to: string,url: string,text: string) => Promise<boolean>;
   const contactBlock: (id: string) => Promise<boolean>;
@@ -136,6 +151,7 @@ const sendMessageToID: (to: string, content: string) => void;
   const getWAVersion: () => String;
   const getMe: () => any;
   const syncContacts: () => boolean;
+  const getAmountOfLoadedMessages: () => number;
   const deleteAllStatus: () => Promise<boolean>;
   const getMyStatusArray: () => Promise<any>;
   const getAllUnreadMessages: () => any;
@@ -144,6 +160,8 @@ const sendMessageToID: (to: string, content: string) => void;
   const getAllChats: () => any;
   const getBatteryLevel: () => number;
   const getIsPlugged: () => boolean;
+  const clearAllChats: () => Promise<boolean>;
+  const cutMsgCache: () => boolean;
   const getChat: (contactId: string) => Chat;
   const getLastSeen: (contactId: string) => Promise<number | boolean>;
   const getProfilePicFromServer: (chatId: string) => any;
@@ -228,6 +246,38 @@ export class Client {
     ).then(_ => this.page.evaluate(
       () => {
         WAPI.onBattery(window["onBattery"]);
+      }));
+  }
+
+  /** @event Listens to when host device is plugged/unplugged
+   * @param fn callback
+   * @fires boolean true if plugged, false if unplugged
+   */
+  public async onPlugged(fn: (plugged: boolean) => void) {
+    this.page.exposeFunction('onPlugged', (plugged: boolean) =>
+      fn(plugged)
+    ).then(_ => this.page.evaluate(
+      () => {
+        WAPI.onPlugged(window["onPlugged"]);
+      }));
+  }
+
+  /**
+   * @event
+   * Requires a Story License Key
+   * Listens to when a contact posts a new story.
+   * @param fn callback
+   * @fires e.g {
+   * from: '123456789@c.us'
+   * id: 'false_132234234234234@status.broadcast'
+   * }
+   */
+  public async onStory(fn: (story: any) => void) {
+    this.page.exposeFunction('onStory', (story: any) =>
+      fn(story)
+    ).then(_ => this.page.evaluate(
+      () => {
+        WAPI.onStory(window["onStory"]);
       }));
   }
 
@@ -440,7 +490,9 @@ export class Client {
 
 
   /**
-   * @event Fires callback with Chat object every time the host phone is added to a group.
+   * Fires callback with Chat object every time the host phone is added to a group.
+   *
+   * @event
    * @param to callback
    * @returns Observable stream of Chats
    */
@@ -459,8 +511,11 @@ export class Client {
 
 
   /**
-   * [REQUIRES A LICENSE-KEY](https://gumroad.com/l/BTMt?tier=Insiders%20Program)
-   * @event Fires callback with Chat object every time the host phone is added to a group.
+   * [REQUIRES AN INSIDERS LICENSE-KEY](https://gumroad.com/l/BTMt)
+   *
+   * Fires callback with Chat object every time the host phone is added to a group.
+   *
+   * @event
    * @param to callback
    * @returns Observable stream of Chats
    */
@@ -477,6 +532,49 @@ export class Client {
       ));
   }
 
+  /**
+   * [REQUIRES AN INSIDERS LICENSE-KEY](https://gumroad.com/l/BTMt)
+   *
+   * Fires callback with the relevant chat id every time the user clicks on a chat. This will only work in headful mode.
+   *
+   * @event
+   * @param to callback
+   * @returns Observable stream of Chat ids.
+   */
+  public onChatOpened(fn: (chat: Chat) => any) {
+    const funcName = "onChatOpened";
+    return this.page.exposeFunction(funcName, (chat: any) =>
+      fn(chat)
+    )
+      .then(_ => this.page.evaluate(
+        () => {
+        //@ts-ignore
+          WAPI.onChatOpened(window.onChatOpened);
+        }
+      ));
+  }
+
+  /**
+   * [REQUIRES AN INSIDERS LICENSE-KEY](https://gumroad.com/l/BTMt)
+   *
+   * Fires callback with contact id when a new contact is added on the host phone.
+   *
+   * @event
+   * @param to callback
+   * @returns Observable stream of contact ids
+   */
+  public onContactAdded(fn: (chat: Chat) => any) {
+    const funcName = "onContactAdded";
+    return this.page.exposeFunction(funcName, (chat: any) =>
+      fn(chat)
+    )
+      .then(_ => this.page.evaluate(
+        () => {
+        //@ts-ignore
+          WAPI.onContactAdded(window.onContactAdded);
+        }
+      ));
+  }
 
   /**
    * Sends a text message to given chat
@@ -510,6 +608,27 @@ export class Client {
         return WAPI.sendMessageWithMentions(to, content);
       },
       { to, content }
+    );
+  }
+
+  /**
+   * [REQUIRES AN INSIDERS LICENSE-KEY](https://gumroad.com/l/BTMt)
+   *
+   * Sends a reply to given chat that includes mentions, replying to the provided replyMessageId.
+   * In order to use this method correctly you will need to send the text like this:
+   * "@4474747474747 how are you?"
+   * Basically, add a @ symbol before the number of the contact you want to mention.
+   * @param to chat id: xxxxx@us.c
+   * @param content text message
+   * @param replyMessageId id of message to reply to
+   */
+  public async sendReplyWithMentions(to: string, content: string, replyMessageId: string) {
+    return await this.page.evaluate(
+      ({ to, content, replyMessageId }) => {
+        WAPI.sendSeen(to);
+        return WAPI.sendReplyWithMentions(to, content, replyMessageId);
+      },
+      { to, content, replyMessageId }
     );
   }
 
@@ -758,6 +877,8 @@ export class Client {
    * @param caption string xxxxx
    * @param quotedMsgId string true_0000000000@c.us_JHB2HB23HJ4B234HJB to send as a reply to a message
    * @param requestConfig {} By default the request is a get request, however you can override that and many other options by sending this parameter. You can read more about this parameter here: https://github.com/axios/axios#request-config
+   * @param waitForId boolean default: false set this to true if you want to wait for the id of the message. By default this is set to false as it will take a few seconds to retreive to the key of the message and this waiting may not be desirable for the majority of users.
+
    */
   public async sendFileFromUrl(
     to: string,
@@ -765,11 +886,12 @@ export class Client {
     filename: string,
     caption: string,
     quotedMsgId?: string,
-    requestConfig: any = {}
+    requestConfig: any = {},
+    waitForId?: boolean
   ) {
     try {
      const base64 = await getBase64(url, requestConfig);
-      return await this.sendFile(to,base64,filename,caption,quotedMsgId)
+      return await this.sendFile(to,base64,filename,caption,quotedMsgId,waitForId)
     } catch(error) {
       console.log('Something went wrong', error);
       return error;
@@ -780,18 +902,26 @@ export class Client {
  * Returns an object with all of your host device details
  */
   public async getMe(){
-    // return await this.page.evaluate(() => WAPI.getMe());
+    return await this.page.evaluate(() => WAPI.getMe());
     //@ts-ignore
-    return await this.page.evaluate(() => Store.Me.attributes);
+    // return await this.page.evaluate(() => Store.Me.attributes);
   }
 
-/**
- * Syncs contacts with phone. This promise does not resolve so it will instantly return true.
- */
-public async syncContacts(){
-  //@ts-ignore
-  return await this.page.evaluate(() => WAPI.syncContacts());
-}
+  /**
+   * Syncs contacts with phone. This promise does not resolve so it will instantly return true.
+   */
+  public async syncContacts(){
+    //@ts-ignore
+    return await this.page.evaluate(() => WAPI.syncContacts());
+  }
+
+   /**
+    * SEasily get the amount of messages loaded up in the session. This will allow you to determine when to clear chats/cache.
+    */
+   public async getAmountOfLoadedMessages(){
+     return await this.page.evaluate(() => WAPI.getAmountOfLoadedMessages());
+   }
+
 
   /**
    * Find any product listings of the given number. Use this to query a catalog
@@ -1112,6 +1242,21 @@ public async contactUnblock(id: string) {
   }
 
   /**
+   * Retrieves the groups that you have in common with a contact
+   * @param contactId
+   * @returns Promise returning an array of common groups {
+   * id:string,
+   * title:string
+   * }
+   */
+  public async getCommonGroups(contactId: string) {
+    return await this.page.evaluate(
+      contactId => WAPI.getCommonGroups(contactId),
+      contactId
+    );
+  }
+
+  /**
    * Retrieves the epoch timestamp of the time the contact was last seen. This will not work if:
    * 1. They have set it so you cannot see their last seen via privacy settings.
    * 2. You do not have an existing chat with the contact.
@@ -1147,6 +1292,18 @@ public async contactUnblock(id: string) {
   public async sendSeen(chatId: string) {
     return await this.page.evaluate(
      chatId => WAPI.sendSeen(chatId),
+      chatId
+    );
+  }
+
+
+  /**
+   * Sets a chat status to unread. May be useful to get host's attention
+   * @param chatId chat id: xxxxx@us.c
+   */
+  public async markAsUnread(chatId: string) {
+    return await this.page.evaluate(
+     chatId => WAPI.markAsUnread(chatId),
       chatId
     );
   }
@@ -1302,7 +1459,7 @@ public async getStatus(contactId: string) {
    * @returns list of messages
    */
   public async getAllUnreadMessages() {
-    return JSON.parse(await this.page.evaluate(() => WAPI.getAllUnreadMessages()));
+    return await this.page.evaluate(() => WAPI.getAllUnreadMessages());
   }
 
   /**
@@ -1482,7 +1639,8 @@ public async getStatus(contactId: string) {
   }
 
   /**
-   * [REQUIRES A LICENSE-KEY](https://gumroad.com/l/BTMt?tier=Insiders%20Program)
+   * [REQUIRES AN INSIDERS LICENSE-KEY](https://gumroad.com/l/BTMt)
+   *
   * Change who can and cannot edit a groups details
   * @param groupId '0000000000-00000000@g.us' the group id.
   * @param onlyAdmins boolean set to true if you want only admins to be able to speak in this group. false if you want to allow everyone to speak in the group
@@ -1496,7 +1654,6 @@ public async getStatus(contactId: string) {
 }
 
   /**
-   * [REQUIRES A LICENSE-KEY](https://gumroad.com/l/BTMt?tier=Insiders%20Program)
   * Get Admins of a Group
   * @param {*} idGroup '0000000000-00000000@g.us'
   */
@@ -1504,6 +1661,32 @@ public async getStatus(contactId: string) {
     return await this.page.evaluate(
       (idGroup) => WAPI.getGroupAdmins(idGroup),
       idGroup
+    );
+  }
+
+  /**
+   * [REQUIRES AN INSIDERS LICENSE-KEY](https://gumroad.com/l/BTMt)
+   *
+   * Set the wallpaper background colour
+   * @param {string} hex '#FFF123'
+  */
+  public async setChatBackgroundColourHex(hex: string) {
+    return await this.page.evaluate(
+      (hex) => WAPI.setChatBackgroundColourHex(hex),
+      hex
+    );
+  }
+
+  /**
+   * [REQUIRES AN INSIDERS LICENSE-KEY](https://gumroad.com/l/BTMt)
+   *
+   * Start dark mode
+   * @param {boolean} activate true to activate dark mode, false to deactivate
+  */
+  public async darkMode(activate: boolean) {
+    return await this.page.evaluate(
+      (activate) => WAPI.darkMode(activate),
+      activate
     );
   }
 
@@ -1521,6 +1704,27 @@ public async getStatus(contactId: string) {
        console.log('Something went wrong', error);
        return error;
      }
+  }
+
+  /**
+   * This allows you to get a single property of a single object from the session. This limints the amouunt of data you need to sift through, reduces congestion between your process and the session and the flexibility to build your own specific getters.
+   *
+   * Example - get message read state (ack):
+   *
+   * ```javascript
+   * const ack  = await client.getSingleProperty('Msg',"true_12345678912@c.us_9C4D0965EA5C09D591334AB6BDB07FEB",'ack')
+   * ```
+   * @param namespace
+   * @param id id of the object to get from the specific namespace
+   * @param property the single property key to get from the object.
+   * @returns any If the property or the id cannot be found, it will return a 404
+   */
+  public async getSingleProperty(namespace: namespace, id: string, property : string) {
+    return await this.page.evaluate(
+      ({ namespace, id, property }) => WAPI.getSingleProperty(namespace, id, property),
+      { namespace, id, property }
+    );
+
   }
 
   public async injectJsSha(){
@@ -1560,7 +1764,8 @@ public async getStatus(contactId: string) {
   }
 
   /**
-   * [REQUIRES A LICENSE-KEY](https://gumroad.com/l/BTMt?tier=1%20Text%20Story%20License%20Key)
+   * [REQUIRES A TEST STORY LICENSE-KEY](https://gumroad.com/l/BTMt)
+   *
    * Sends a formatted text story.
    * @param text The text to be displayed in the story
    * @param textRgba The colour of the text in the story in hex format, make sure to add the alpha value also. E.g "#FF00F4F2"
@@ -1582,7 +1787,8 @@ public async getStatus(contactId: string) {
   }
 
   /**
-   * [REQUIRES A LICENSE-KEY](https://gumroad.com/l/BTMt?tier=1%20Image%20Story%20License%20Key)
+   * [REQUIRES AN IMAGE STORY LICENSE-KEY](https://gumroad.com/l/BTMt)
+   *
    * Posts an image story.
    * @param data data uri string `data:[<MIME-type>][;charset=<encoding>][;base64],<data>`
    * @param caption The caption for the story
@@ -1596,7 +1802,8 @@ public async getStatus(contactId: string) {
   }
 
   /**
-   * [REQUIRES A LICENSE-KEY](https://gumroad.com/l/BTMt?tier=1%20Video%20Story%20License%20Key)
+   * [REQUIRES A VIDEO STORY LICENSE-KEY](https://gumroad.com/l/BTMt)
+   *
    * Posts a video story.
    * @param data data uri string `data:[<MIME-type>][;charset=<encoding>][;base64],<data>`
    * @param caption The caption for the story
@@ -1636,6 +1843,26 @@ public async getStatus(contactId: string) {
   public async getMyStatusArray() {
     return await this.page.evaluate(() => WAPI.getMyStatusArray());
   }
+
+    /**
+     * [REQUIRES AN INSIDERS LICENSE-KEY](https://gumroad.com/l/BTMt)
+     *
+     * Clears all chats of all messages. This does not delete chats. Please be careful with this as it will remove all messages from whatsapp web and the host device. This feature is great for privacy focussed bots.
+     */
+  public async clearAllChats() {
+    return await this.page.evaluate(() => WAPI.clearAllChats());
+  }
+
+
+    /**
+     * This simple function halves the amount of messages in your session message cache. This does not delete messages off your phone. If over a day you've processed 4000 messages this will possibly result in 4000 messages being present in your session.
+     * Calling this method will cut the message cache to 2000 messages, therefore reducing the memory usage of your process.
+     * You should use this in conjunction with `getAmountOfLoadedMessages` to intelligently control the session message cache.
+     */
+  public async cutMsgCache() {
+    return await this.page.evaluate(() => WAPI.cutMsgCache());
+  }
+
   /**
    * Download profile pics from the message object.
    * ```javascript
@@ -1665,13 +1892,91 @@ public async getStatus(contactId: string) {
 
 
   /**
-   * [REQUIRES A LICENSE-KEY](https://gumroad.com/l/BTMt?tier=Insiders%20Program)
+   * [REQUIRES AN INSIDERS LICENSE-KEY](https://gumroad.com/l/BTMt)
+   *
    * Sets the profile pic of the host number.
    * @param data string data uri image string.
    * @returns Promise<boolean> success if true
    */
   public async setProfilePic(data: string){
     return await this.page.evaluate(({ data }) => WAPI.setProfilePic(data),{data});
+  }
+
+  /**
+   * This exposes a simple express middlware that will allow users to quickly boot up an api based off this client. Checkout demo/index.ts for an example
+   * How to use the middleware:
+   *
+   * ```javascript
+   *
+   * import { create } from '@open-wa/wa-automate';
+   * const express = require('express')
+   * const app = express()
+   * app.use(express.json())
+   * const PORT = 8082;
+   *
+   * function start(client){
+   *   app.use(client.middleware);
+   *   app.listen(PORT, function () {
+   *     console.log(`\n• Listening on port ${PORT}!`);
+   *   });
+   *   ...
+   * }
+   *
+   *
+   * create({
+   *   sessionId:'session1'
+   * }).then(start)
+   *
+   * ```
+   *
+   * All requests need to be `POST` requests. You use the API the same way you would with `client`. The method can be the path or the method param in the post body. The arguments for the method should be properly ordered in the args array in the JSON post body.
+   *
+   * Example:
+   * 
+   * ```javascript
+   *   await client.sendText('4477777777777@c.us','test')
+   *   //returns "true_4477777777777@c.us_3EB0645E623D91006252"
+   * ```
+   * as a request with a path:
+   *
+   * ```javascript
+   * const axios = require('axios').default;
+   * axios.post('localhost:8082/sendText', {
+   *     args: [
+   *        "4477777777777@c.us",
+   *        "test"
+   *         ]
+   *   })
+   * ```
+   *
+   * or as a request without a path:
+   *
+   * ```javascript
+   * const axios = require('axios').default;
+   * axios.post('localhost:8082', {
+   *     method:'sendText',
+   *     args: [
+   *        "4477777777777@c.us",
+   *        "test"
+   *         ]
+   * })
+   * ```
+   */
+  middleware = async (req,res,next) => {
+    if(req.method==='POST') {
+      let {method,args} = req.body
+      if(!args) args = [];
+      const m = method || req.path.replace('/','');
+      if(this[m]){
+        const response = await this[m](...args);
+        return res.send({
+          success:true,
+          response
+        })
+      }
+      return res.status(404).send('Cannot find method')
+    }
+    return next();
   }
 
 }

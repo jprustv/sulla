@@ -12,7 +12,7 @@ if (!window.Store||!window.Store.Msg) {
         function getStore(modules) {
             let foundCount = 0;
             let neededObjects = [
-                { id: "Store", conditions: (module) => (module.Chat && module.Msg) ? module : null },
+                { id: "Store", conditions: (module) => (module.default && module.default.Chat && module.default.Msg) ? module.default : null},
                 { id: "MediaCollection", conditions: (module) => (module.default && module.default.prototype && (module.default.prototype.processFiles !== undefined||module.default.prototype.processAttachments !== undefined)) ? module.default : null },
                 { id: "MediaProcess", conditions: (module) => (module.BLOB) ? module : null },
                 { id: "Archive", conditions: (module) => (module.setArchive) ? module : null },
@@ -30,7 +30,7 @@ if (!window.Store||!window.Store.Msg) {
                 { id: "OpenChat", conditions: (module) => (module.default && module.default.prototype && module.default.prototype.openChat) ? module.default : null },
                 { id: "UserConstructor", conditions: (module) => (module.default && module.default.prototype && module.default.prototype.isServer && module.default.prototype.isUser) ? module.default : null },
                 { id: "SendTextMsgToChat", conditions: (module) => (module.sendTextMsgToChat) ? module.sendTextMsgToChat : null },
-                { id: "SendSeen", conditions: (module) => (module.sendSeen) ? module.sendSeen : null },
+                { id: "ReadSeen", conditions: (module) => (module.sendSeen) ? module : null },
                 { id: "sendDelete", conditions: (module) => (module.sendDelete) ? module.sendDelete : null },
                 { id: "addAndSendMsgToChat", conditions: (module) => (module.addAndSendMsgToChat) ? module.addAndSendMsgToChat : null },
                 { id: "sendMsgToChat", conditions: (module) => (module.sendMsgToChat) ? module.sendMsgToChat : null },
@@ -167,6 +167,11 @@ window.WAPI._serializeMessageObj = (obj) => {
     if(obj.quotedMsg) obj.quotedMsgObj();
     return Object.assign(window.WAPI._serializeRawObj(obj), {
         id: obj.id._serialized,
+        from: obj.from._serialized,
+        quotedParticipant: obj.quotedParticipant? obj.quotedParticipant._serialized ? obj.quotedParticipant._serialized : undefined : undefined,
+        author: obj.author? obj.author._serialized ? obj.author._serialized : undefined : undefined,
+        chatId: obj.chatId? obj.chatId._serialized ? obj.chatId._serialized : undefined : undefined,
+        to: obj.to? obj.to._serialized ? obj.to._serialized : undefined : undefined,
         fromMe: obj.id.fromMe,
         sender: obj["senderObj"] ? WAPI._serializeContactObj(obj["senderObj"]) : null,
         timestamp: obj["t"],
@@ -294,13 +299,18 @@ window.WAPI.getAllNewMessages = async function () {
     return JSON.stringify(WAPI.getAllChatsWithNewMsg().map(c => WAPI.getChat(c.id._serialized)).map(c => c.msgs._models.filter(x => x.isNewMsg)) || [])
 }
 
-// x.ack==-1
+// nnoo longer determined by x.ack==-1
 window.WAPI.getAllUnreadMessages = async function () {
-    return JSON.stringify(WAPI.getAllChatsWithNewMsg().map(c => WAPI.getChat(c.id._serialized)).map(c => c.msgs._models.filter(x => x.ack == -1)).flatMap(x => x) || [])
+    return Store.Chat.models.filter(chat=>chat.unreadCount&&chat.unreadCount>0).map(unreadChat=>unreadChat.msgs.models.slice(-1*unreadChat.unreadCount)).flat().map(WAPI._serializeMessageObj)
 }
 
 window.WAPI.getIndicatedNewMessages = async function () {
     return JSON.stringify(Store.Chat.models.filter(chat=>chat.unreadCount).map(chat=>{return {id:chat.id,indicatedNewMessages: chat.msgs.models.slice(Math.max(chat.msgs.length - chat.unreadCount, 0)).filter(msg=>!msg.id.fromMe)}}))
+}
+
+window.WAPI.getSingleProperty = function (namespace,id,property){
+    if(Store[namespace] && Store[namespace].get(id) && Object.keys(Store[namespace].get(id)).find(x=>x.includes(property))) return Store[namespace].get(id)[property];
+    return 404
 }
 
 window.WAPI.getAllChatsWithMessages = async function (onlyNew) {
@@ -352,6 +362,7 @@ window.WAPI.sendChatstate = async function (state, chatId) {
  * @returns {T|*} Chat object
  */
 window.WAPI.getChat = function (id) {
+    if (!id) return false;
     id = typeof id == "string" ? id : id._serialized;
     const found = window.Store.Chat.get(id);
     if (found) found.sendMessage = (found.sendMessage) ? found.sendMessage : function () { return window.Store.sendMessage.apply(this, arguments); };
@@ -644,7 +655,11 @@ window.WAPI.getGroupAdmins = async function (id) {
  * Returns an object with all of your host device details
  */
 window.WAPI.getMe = function(){
-    return Store.Me.attributes;
+    return {...WAPI.quickClean({
+        ...Store.Contact.get(Store.Me.wid).attributes,
+        ...Store.Me.attributes
+    }),
+    me:Store.Me.me};
 }
 
 window.WAPI.isLoggedIn = function () {
@@ -857,9 +872,19 @@ window.WAPI.sendMessage2 = function (id, message) {
 };
 
 window.WAPI.sendSeen = async function (id) {
+    if (!id) return false;
     var chat = window.WAPI.getChat(id);
     if (chat !== undefined) {
-            await Store.SendSeen(chat, false);
+            await Store.ReadSeen.sendSeen(chat, false);
+            return true;
+    }
+    return false;
+};
+
+window.WAPI.markAsUnread = async function (id) {
+    var chat = window.WAPI.getChat(id);
+    if (chat !== undefined) {
+            await Store.ReadSeen.markUnread(chat, true);
             return true;
     }
     return false;
@@ -1325,6 +1350,11 @@ window.WAPI.onBattery = function(callback) {
     return true;
 }
 
+window.WAPI.onPlugged = function(callback) {
+    window.Store.Conn.on('change:plugged', ({plugged}) =>  callback(plugged));
+    return true;
+}
+
 /**
  * Registers a callback to participant changes on a certain, specific group
  * @param groupId - string - The id of the group that you want to attach the callback to.
@@ -1637,7 +1667,7 @@ window.WAPI.sendImageWithProduct = async function (imgBase64, chatid, caption, b
 window.WAPI.base64ImageToFile = function (b64Data, filename) {
     var arr = b64Data.split(',');
     var mime = arr[0].match(/:(.*?);/)[1];
-    var bstr = atob(arr[1]);
+    var bstr = Base64 ? Base64.atob(arr[1]) : atob(arr[1]);
     var n = bstr.length;
     var u8arr = new Uint8Array(n);
 
@@ -2131,6 +2161,16 @@ window.WAPI.getUseHereString = async function() {
   return window.l10n.localeStrings[window.l10n.getLocale()][0][window.l10n.localeStrings.en[0].findIndex(x=>x.toLowerCase()==='use here')]
  }
 
+ window.WAPI.getAmountOfLoadedMessages = function() {
+    return Store.Msg.models.length;
+}
+
+window.WAPI.cutMsgCache = function (){
+    Store.Msg.models.map(msg=>Store.Msg.remove(msg));
+    return true;
+}
+
+//All of the following features can be unlocked using a license key: https://github.com/open-wa/wa-automate-nodejs#license-key
 window.WAPI.getStoryStatusByTimeStamp = function(){return false;}
 window.WAPI.deleteAllStatus = function(){return false;}
 window.WAPI.getMyStatusArray = function(){return false;}
@@ -2140,7 +2180,15 @@ window.WAPI.setGroupEditToAdminsOnly = function(){return false;}
 window.WAPI.postTextStatus = function(){return false;}
 window.WAPI.postImageStatus = function(){return false;}
 window.WAPI.postVideoStatus = function(){return false;}
-window.WAPI.onAddedToGroup = function(){return false;}
+window.WAPI.onRemovedFromGroup = function(){return false;}
+window.WAPI.onContactAdded = function(){return false;}
+window.WAPI.sendReplyWithMentions = function(){return false;}
+window.WAPI.clearAllChats = function(){return false;}
+window.WAPI.getCommonGroups = function(){return false;}
+window.WAPI.setChatBackgroundColourHex = function(){return false;}
+window.WAPI.darkMode = function(){return false;}
+window.WAPI.onChatOpened = function(){return false;}
+window.WAPI.onStory = function(){return false;}
 
 window.WAPI.quickClean = function (ob) {return JSON.parse(JSON.stringify(ob))};
 

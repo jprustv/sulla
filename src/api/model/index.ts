@@ -102,9 +102,35 @@ export interface ConfigObject {
      *          console.log(sessionId, sessionData)
      *      })
      * ```
+     *  NOTE: You can set sessionData as an evironmental variable also! The variable name has to be [sessionId (default = 'session) in all caps]_DATA_JSON. You have to make sure to surround your session data with single quotes to maintain the formatting.
      * 
+     * For example:
+     * 
+     * sessionId = 'session'
+     * 
+     * To set env var:
+     * ```bash
+     *    export SESSION_DATA_JSON=`...`
+     * ```
+     * where ... is copied from session.data.json
+     * Again - YOU NEED THE ' as it maintains the formatting from the json file. Otherwise it will not work.
+     * Setting the sessionData in the environmental variable will override the sessionData object in the config.
      */
     sessionData ?: SessionData,
+    /**
+     * ALPHA EXPERIMENTAL FEATURE! DO NOT USE IN PRODUCTION, REQUIRES TESTING.
+     * 
+     * Learn more:
+     * 
+     * https://pptr.dev/#?product=Puppeteer&version=v3.1.0&show=api-puppeteerconnectoptions
+     * 
+     * https://medium.com/@jaredpotter1/connecting-puppeteer-to-existing-chrome-window-8a10828149e0
+     */
+    browserWSEndpoint ?: string,
+    /**
+     * This flag allows you to disable or enable the use of the puppeteer stealth plugin. It is a good idea to use it, however it can cause issues sometimes. Set this to false if you are experiencing `browser.setMaxListeneres` issue. For now the default for this is false.
+     */
+    useStealth ?: boolean,
     /**
      * The path relative to the current working directory (i.e where you run the command to start your process). This will be used to store and read your `.data.json` files. defualt to ''
      */
@@ -155,6 +181,14 @@ export interface ConfigObject {
      * Setting this to false turn off the cache. This may improve memory usage.
      */
     cacheEnabled ?: boolean,
+    /**
+     * This is the specific browser revision to be downlaoded and used. You can find browser revision strings here: http://omahaproxy.appspot.com/
+     * Learn more about it here: https://github.com/puppeteer/puppeteer/blob/master/docs/api.md#class-browserfetcher
+     * If you're having trouble with sending images, try '737027'.
+     * If you go too far back things will start breaking !!!!!!
+     * NOTE: THIS WILL OVERRIDE useChrome and executablePath. ONLY USE THIS IF YOU KNOW WHAT YOU ARE DOING.
+     */
+    browserRevision ?: string,
     /**
      * Setting this to true will throw an error if a session is not able to get a QR code or is unable to restart a session.
      */

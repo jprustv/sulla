@@ -12,10 +12,16 @@ const spinner = {
     "🌗 ",
     "🌘 "
   ]}
-
 export const ev = new EventEmitter2({
   wildcard:true,
 });
+let globalSpinner;
+
+
+const getGlobalSpinner = (disableSpins: boolean = false) => {
+  if(!globalSpinner) globalSpinner = new Spinnies({ color: 'blue', succeedColor: 'green', spinner, disableSpins});
+  return globalSpinner;
+}
 
 export class EvEmitter {
 
@@ -35,34 +41,38 @@ export class EvEmitter {
 
 export class Spin extends EvEmitter{
   _spinner : Spinnies.Spinner;
+  _shouldEmit: boolean;
+  _spinId: string;
 
-  constructor(sessionId: string, eventNamespace: string, disableSpins: boolean = false){
+  constructor(sessionId: string, eventNamespace: string, disableSpins: boolean = false, shouldEmit:boolean = true){
     super(sessionId,eventNamespace);
-    this._spinner = new Spinnies({ color: 'blue', succeedColor: 'green', spinner, disableSpins});
+    this._spinId = sessionId+"_"+eventNamespace
+    this._spinner = getGlobalSpinner(disableSpins);
+    this._shouldEmit = shouldEmit
   }
   
   
   start(eventMessage:string){
-    this._spinner.add(this.sessionId, { text: eventMessage });
-    this.emit(eventMessage);
+    this._spinner.add(this._spinId, { text: eventMessage });
+    if(this._shouldEmit) this.emit(eventMessage);
   }
 
   info(eventMessage:string){
-    this._spinner.update(this.sessionId, { text: eventMessage });
-    this.emit(eventMessage);
+    this._spinner.update(this._spinId, { text: eventMessage });
+    if(this._shouldEmit) this.emit(eventMessage);
   }
 
   fail(eventMessage:string){
-    this._spinner.fail(this.sessionId, { text: eventMessage });
-    this.emit(eventMessage);
+    this._spinner.fail(this._spinId, { text: eventMessage });
+    if(this._shouldEmit) this.emit(eventMessage);
   }
   
   succeed(eventMessage ?: string){
-    this._spinner.succeed(this.sessionId, { text: eventMessage });
-    this.emit(eventMessage||'SUCCESS');
+    this._spinner.succeed(this._spinId, { text: eventMessage });
+    if(this._shouldEmit) this.emit(eventMessage||'SUCCESS');
   }
 
   remove() {
-    this._spinner.remove(this.sessionId);
+    this._spinner.remove(this._spinId);
   }
 }
