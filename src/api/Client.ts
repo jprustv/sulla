@@ -11,12 +11,36 @@ import axios from 'axios';
 import { ParticipantChangedEventModel } from './model/group-metadata';
 import { useragent } from '../config/puppeteer.config'
 import sharp from 'sharp';
+import { ConfigObject } from './model';
+const parseFunction = require('parse-function');
+const { default: PQueue } = require("p-queue");
 
-enum namespace {
+
+export enum namespace {
   Chat = 'Chat',
   Msg = 'Msg',
   Contact = 'Contact',
   GroupMetadata = 'GroupMetadata'
+}
+
+export enum AvailableWebhooks {
+  Message = 'onMessage',
+  AnyMessage = 'onAnyMessage',
+  Ack = 'onAck',
+  AddedToGroup = 'onAddedToGroup',
+  Battery = 'onBattery',
+  ChatOpened = 'onChatOpened',
+  IncomingCall = 'onIncomingCall',
+  GlobalParicipantsChanged = 'onGlobalParicipantsChanged',
+  // Next two require extra params so not available to use via webhook register
+  // LiveLocation = 'onLiveLocation',
+  // ParticipantsChanged = 'onParticipantsChanged',
+  Plugged = 'onPlugged',
+  StateChanged = 'onStateChanged',
+  //require licences
+  Story = 'onStory',
+  RemovedFromGroup = 'onRemovedFromGroup',
+  ContactAdded = 'onContactAdded',
 }
 
 export const getBase64 = async (url: string, optionsOverride: any = {} ) => {
@@ -62,6 +86,7 @@ declare module WAPI {
   const onAddedToGroup: (callback: Function) => any;
   const onBattery: (callback: Function) => any;
   const onPlugged: (callback: Function) => any;
+  const onGlobalParicipantsChanged: (callback: Function) => any;
   const onStory: (callback: Function) => any;
   const setChatBackgroundColourHex: (hex: string) => boolean;
   const darkMode: (activate: boolean) => boolean;
@@ -81,7 +106,7 @@ const sendMessageToID: (to: string, content: string) => void;
   const reply: (to: string, content: string, quotedMsg: string | Message) => Promise<string|boolean>;
   const getGeneratedUserAgent: (userAgent?: string) => string;
   const forwardMessages: (to: string, messages: string | (string | Message)[], skipMyMessages: boolean) => any;
-  const sendLocation: (to: string, lat: any, lng: any, loc: string) => void;
+  const sendLocation: (to: string, lat: any, lng: any, loc: string) => Promise<string>;
   const addParticipant: (groupId: string, contactId: string) => void;
   const getMessageById: (mesasgeId: string) => Message;
   const setMyName: (newName: string) => void;
@@ -169,8 +194,9 @@ const sendMessageToID: (to: string, content: string) => void;
   const getAllChatsWithNewMsg: () => Chat[];
   const getAllNewMessages: () => any;
   const getUseHereString: () => Promise<string>;
+  const getHostNumber: () => string;
   const getAllGroups: () => Chat[];
-  const getGroupParticipantIDs: (groupId: string) => Promise<Id[]>;
+  const getGroupParticipantIDs: (groupId: string) => Promise<string[]>;
   const joinGroupViaLink: (link: string) => Promise<string | boolean>;
   const leaveGroup: (groupId: string) => any;
   const getVCards: (msgId: string) => any;
@@ -203,13 +229,21 @@ const sendMessageToID: (to: string, content: string) => void;
 
 export class Client {
   _loadedModules: any[];
+  _registeredWebhooks: any;
+  _webhookQueue: any;
+  _createConfig: ConfigObject;
 
   /**
    * @param page [Page] [Puppeteer Page]{@link https://pptr.dev/#?product=Puppeteer&version=v2.1.1&show=api-class-page} running WA Web
    */
-  constructor(public page: Page) {
+  constructor(public page: Page, createConfig: ConfigObject) {
     this.page = page;
+    this._createConfig = createConfig;
     this._loadedModules = [];
+    page.on('close',()=>{
+      this.kill();
+      if(!(this._createConfig?.killProcessOnBrowserClose===false)) process.exit();
+    })
   }
 
   /**
@@ -420,8 +454,10 @@ export class Client {
    */
   public async kill() {
     console.log('Shutting Down');
-    if (this.page) await this.page.close();
-    if (this.page.browser) await this.page.browser().close();
+    try{
+      if (this.page && !this.page.isClosed()) await this.page.close();
+      if (this.page && this.page.browser) await this.page.browser().close();
+    } catch(error){}
     return true;
   }
 
@@ -469,7 +505,8 @@ export class Client {
   }
 
   /**
-   * @event Listens to add and remove events on Groups. This can no longer determine who commited the action and only reports the following events add, remove, promote, demote
+   * @event 
+   * Listens to add and remove events on Groups. This can no longer determine who commited the action and only reports the following events add, remove, promote, demote
    * @param to group id: xxxxx-yyyy@us.c
    * @param to callback
    * @returns Observable stream of participantChangedEvent
@@ -488,6 +525,26 @@ export class Client {
       ));
   }
 
+  /**
+   * @event
+   * Listens to add and remove events on Groups on a global level. It is memory efficient and doesn't require a specific group id to listen to.
+   * @param to callback
+   * @returns Observable stream of participantChangedEvent
+   */
+  public async onGlobalParicipantsChanged(fn: (participantChangedEvent: ParticipantChangedEventModel) => void) {
+    const funcName = "onGlobalParicipantsChanged";
+    return await this.page.exposeFunction(funcName, (participantChangedEvent: ParticipantChangedEventModel) =>
+      fn(participantChangedEvent)
+    )
+      .then(_ => this.page.evaluate(
+        ({ funcName }) => {
+          //@ts-ignore
+          return WAPI.onGlobalParicipantsChanged(window[funcName]);
+        },
+        { funcName }
+      ));
+  }
+  
 
   /**
    * Fires callback with Chat object every time the host phone is added to a group.
@@ -686,9 +743,7 @@ export class Client {
    */
   public async sendLocation(to: string, lat: any, lng: any, loc: string) {
     return await this.page.evaluate(
-      ({ to, lat, lng, loc }) => {
-        WAPI.sendLocation(to, lat, lng, loc);
-      },
+      ({ to, lat, lng, loc }) => WAPI.sendLocation(to, lat, lng, loc),
       { to, lat, lng, loc }
     );
   }
@@ -738,7 +793,7 @@ export class Client {
  * @param url string A youtube link.
  * @param text string Custom text as body of the message, this needs to include the link or it will be appended after the link.
  */
-  public async sendYoutubeLink(to: string, url: string, text?: string,) {
+  public async sendYoutubeLink(to: string, url: string, text: string = '') {
     return this.sendLinkWithAutoPreview(to,url,text);
   }
 
@@ -765,15 +820,15 @@ export class Client {
    *
    * @param to string chatid
    * @param content string reply text
-   * @param quotedMsg string | Message the msg object or id to reply to.
+   * @param quotedMsgId string the msg id to reply to.
    * @param sendSeen boolean If set to true, the chat will 'blue tick' all messages before sending the reply
    * @returns Promise<string | boolean> false if didn't work, otherwise returns message id.
    */
-  public async reply(to: string, content: string, quotedMsg: any, sendSeen?: boolean) {
+  public async reply(to: string, content: string, quotedMsgId: string, sendSeen?: boolean) {
     if(sendSeen) await this.sendSeen(to);
     return await this.page.evaluate(
-      ({ to, content, quotedMsg }) =>WAPI.reply(to, content, quotedMsg),
-      { to, content, quotedMsg }
+      ({ to, content, quotedMsgId }) =>WAPI.reply(to, content, quotedMsgId),
+      { to, content, quotedMsgId }
     )
   }
 
@@ -1067,6 +1122,14 @@ export class Client {
   }
 
   /**
+   * Retrieves the host device number. Use this number when registering for a license key
+   * @returns Number
+   */
+  public async getHostNumber() {
+    return await this.page.evaluate(() => WAPI.getHostNumber());
+  }
+
+  /**
    * Retrieves all chats
    * @returns array of [Chat]
    */
@@ -1187,7 +1250,7 @@ public async contactUnblock(id: string) {
   public async getGroupMembers(groupId: string) {
     const membersIds = await this.getGroupMembersId(groupId);
     const actions = membersIds.map(memberId => {
-      return this.getContact(memberId._serialized);
+      return this.getContact(memberId);
     });
     return await Promise.all(actions);
   }
@@ -1451,7 +1514,7 @@ public async getStatus(contactId: string) {
    * @returns list of messages
    */
   public async getAllNewMessages() {
-    return JSON.parse(await this.page.evaluate(() => WAPI.getAllNewMessages()));
+    return await this.page.evaluate(() => WAPI.getAllNewMessages());
   }
 
   /**
@@ -1477,7 +1540,10 @@ public async getStatus(contactId: string) {
   }
 
   /**
-   * Retrieves all Messages in a chat
+   * Retrieves all Messages in a chat that have been loaded within the WA web instance.
+   * 
+   * This does not load every single message in the chat history.
+   * 
    * @param chatId, the chat to get the messages from
    * @param includeMe, include my own messages? boolean
    * @param includeNotifications
@@ -1915,7 +1981,7 @@ public async getStatus(contactId: string) {
    * const PORT = 8082;
    *
    * function start(client){
-   *   app.use(client.middleware);
+   *   app.use(client.middleware()); //or client.middleware(true) if you require the session id to be part of the path (so localhost:8082/sendText beccomes localhost:8082/sessionId/sendText)
    *   app.listen(PORT, function () {
    *     console.log(`\n• Listening on port ${PORT}!`);
    *   });
@@ -1961,12 +2027,32 @@ public async getStatus(contactId: string) {
    *         ]
    * })
    * ```
+   * 
+   * As of 1.9.69, you can also send the argyments as an object with the keys mirroring the paramater names of the relative client functions
+   * 
+   * Example:
+   * 
+   * ```javascript
+   * const axios = require('axios').default;
+   * axios.post('localhost:8082', {
+   *     method:'sendText',
+   *     args: {
+   *        "to":"4477777777777@c.us",    
+   *        "content":"test"   
+   *         }
+   * })
+   * ```
+   * @param useSessionIdInPath boolean Set this to true if you want to keep each session in it's own path.
+   * 
+   * For example, if you have a session with id  `host` if you set useSessionIdInPath to true, then all requests will need to be prefixed with the path `host`. E.g `localhost:8082/sendText` becomes `localhost:8082/host/sendText`
    */
-  middleware = async (req,res,next) => {
+  middleware = (useSessionIdInPath: boolean = false) => async (req,res,next) => {
+    if(useSessionIdInPath && !req.path.includes(this._createConfig.sessionId) && this._createConfig.sessionId!== 'session') return next();
     if(req.method==='POST') {
       let {method,args} = req.body
-      if(!args) args = [];
-      const m = method || req.path.replace('/','');
+      const m = method || this._createConfig.sessionId && this._createConfig.sessionId!== 'session' && req.path.includes(this._createConfig.sessionId) ? req.path.replace(`/${this._createConfig.sessionId}/`,'') :  req.path.replace('/','');
+      if(args && !Array.isArray(args)) args = parseFunction().parse(this[m]).args.map(argName=> args[argName]);
+      else if(!args) args = [];
       if(this[m]){
         const response = await this[m](...args);
         return res.send({
@@ -1979,6 +2065,37 @@ public async getStatus(contactId: string) {
     return next();
   }
 
+  /**
+   * The client can now automatically handle webhooks. Use this method to register webhooks.
+   * 
+   * @param event use AvailableWebhooks enum
+   * @param url The webhook url
+   * @param requestConfig {} By default the request is a post request, however you can override that and many other options by sending this parameter. You can read more about this parameter here: https://github.com/axios/axios#request-config
+   * @param concurrency the amount of concurrent requests to be handled by the built in queue. Default is 5.
+   */
+  public async registerWebhook(event: AvailableWebhooks, url: string, requestConfig: any = {}, concurrency: number = 5) {
+    if(!this._webhookQueue) this._webhookQueue = new PQueue({ concurrency });
+    if(this[event]){
+      if(!this._registeredWebhooks) this._registeredWebhooks={};
+      if(this._registeredWebhooks[event]) {
+        console.log('webhook already registered');
+        return false;
+      }
+      this._registeredWebhooks[event] = this[event](async _data=>await this._webhookQueue.add(async () => await axios({
+        method: 'post',
+        url,
+        data: {
+        ts: Date.now(),
+        event,
+        data:_data
+        },
+        ...requestConfig
+      })));
+      return this._registeredWebhooks[event];
+    }
+    console.log('Invalid lisetner', event);
+    return false;
+  }
 }
 
 export { useragent } from '../config/puppeteer.config'

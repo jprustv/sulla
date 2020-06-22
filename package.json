@@ -1,6 +1,6 @@
 {
   "name": "@jprustv/sulla-hotfix",
-  "version": "1.9.63",
+  "version": "1.9.78",
   "description": "Javascript whatsapp framework",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -47,6 +47,7 @@
   "devDependencies": {
     "@types/changelog-parser": "^2.7.1",
     "@types/command-line-args": "^5.0.0",
+    "@types/express": "^4.17.6",
     "@types/line-reader": "0.0.29",
     "@types/marked": "^0.7.2",
     "@types/node": "^14.0.1",
@@ -79,7 +80,9 @@
     "futoin-hkdf": "^1.2.1",
     "image-type": "^4.1.0",
     "lodash.uniq": "^4.5.0",
-    "puppeteer": "^3.0.0",
+    "p-queue": "^6.4.0",
+    "parse-function": "^5.6.10",
+    "puppeteer": "^4.0.0",
     "puppeteer-extra": "^3.1.9",
     "puppeteer-extra-plugin-devtools": "^2.2.8",
     "puppeteer-extra-plugin-stealth": "^2.4.9",

@@ -22,7 +22,7 @@ if (!window.Store||!window.Store.Msg) {
                 { id: "Wap", conditions: (module) => (module.createGroup) ? module : null },
                 { id: "ServiceWorker", conditions: (module) => (module.default && module.default.killServiceWorker) ? module : null },
                 { id: "State", conditions: (module) => (module.STATE && module.STREAM) ? module : null },
-                { id: "Presence", conditions: (module) => (module.setPresenceAvailable && module.setPresenceUnavailable) ? module : null },
+                { id: "_Presence", conditions: (module) => (module.setPresenceAvailable && module.setPresenceUnavailable) ? module : null },
                 { id: "WapDelete", conditions: (module) => (module.sendConversationDelete && module.sendConversationDelete.length == 2) ? module : null },
                 { id: "Conn", conditions: (module) => (module.default && module.default.ref && module.default.refTTL) ? module.default : null },
                 { id: "WapQuery", conditions: (module) => (module.queryExist) ? module : ((module.default && module.default.queryExist) ? module.default : null) },
@@ -52,7 +52,6 @@ if (!window.Store||!window.Store.Msg) {
                 { id: "Participants", conditions: (module) => (module.addParticipants && module.removeParticipants && module.promoteParticipants && module.demoteParticipants) ? module : null },
                 { id: "WidFactory", conditions: (module) => (module.isWidlike && module.createWid && module.createWidFromWidLike) ? module : null },
                 { id: "Base", conditions: (module) => (module.setSubProtocol && module.binSend && module.actionNode) ? module : null },
-                { id: "Base2", conditions: (module) => (module.supportsFeatureFlags && module.parseMsgStubProto && module.binSend && module.subscribeLiveLocation) ? module : null },
                 { id: "Versions", conditions: (module) => (module.loadProtoVersions && module.default["15"] && module.default["16"] && module.default["17"]) ? module : null },
 		        { id: "Sticker", conditions: (module) => (module.default && module.default.Sticker) ? module.default.Sticker : null },
                 { id: "MediaUpload", conditions: (module) => (module.default && module.default.mediaUpload) ? module.default : null },
@@ -129,6 +128,7 @@ window.WAPI._serializeChatObj = (obj) => {
         return null;
     }
     return Object.assign(window.WAPI._serializeRawObj(obj), {
+        id: obj.id._serialized,
         kind: obj.kind,
         isGroup: obj.isGroup,
         formattedTitle: obj.formattedTitle,
@@ -144,6 +144,7 @@ window.WAPI._serializeContactObj = (obj) => {
         return null;
     }
     return Object.assign(window.WAPI._serializeRawObj(obj), {
+        id: obj.id._serialized,
         formattedName: obj.formattedName,
         isHighLevelVerified: obj.isHighLevelVerified,
         isMe: obj.isMe,
@@ -296,7 +297,7 @@ window.WAPI.getAllChatIds = function () {
 };
 
 window.WAPI.getAllNewMessages = async function () {
-    return JSON.stringify(WAPI.getAllChatsWithNewMsg().map(c => WAPI.getChat(c.id._serialized)).map(c => c.msgs._models.filter(x => x.isNewMsg)) || [])
+    return WAPI.getAllChatsWithNewMsg().map(c => WAPI.getChat(c.id)).flatMap(c => c.msgs._models.filter(x => x.isNewMsg)).map(WAPI._serializeMessageObj) || [];
 }
 
 // nnoo longer determined by x.ack==-1
@@ -329,7 +330,7 @@ window.WAPI.getAllChatsWithMessages = async function (onlyNew) {
  * @returns {Array|*} List of chats
  */
 window.WAPI.getAllGroups = function () {
-    return window.Store.Chat.filter((chat) => chat.isGroup);
+    return window.WAPI.getAllChats().filter((chat) => chat.isGroup);
 };
 
 /**
@@ -379,7 +380,7 @@ return await Store.MyStatus.getStatus(id)
 }
 
 window.WAPI.getChatByName = function (name) {
-    return window.Store.Chat.find((chat) => chat.name === name);
+    return window.WAPI.getAllChats().find((chat) => chat.name === name);
 };
 
 window.WAPI.sendImageFromDatabasePicBot = function (picId, chatId, caption) {
@@ -429,6 +430,7 @@ window.WAPI.getWAVersion = function () {
  * @param text string Custom text as body of the message, this needs to include the link or it will be appended after the link.
  */
 window.WAPI.sendLinkWithAutoPreview = async function (chatId, url, text) {
+    text = text || '';
     var chatSend = WAPI.getChat(chatId);
     if (chatSend === undefined) {
         return false;
@@ -642,13 +644,13 @@ window.WAPI._getGroupParticipants = async function (id) {
  */
 window.WAPI.getGroupParticipantIDs = async function (id) {
     return (await WAPI._getGroupParticipants(id))
-        .map((participant) => participant.id);
+        .map((participant) => participant.id._serialized);
 };
 
 window.WAPI.getGroupAdmins = async function (id) {
     return (await WAPI._getGroupParticipants(id))
         .filter((participant) => participant.isAdmin)
-        .map((admin) => admin.id);
+        .map((admin) => admin.id._serialized);
 };
 
 /**
@@ -858,18 +860,6 @@ window.WAPI.sendMessage = async function (id, message) {
     return false;
     };
 
-window.WAPI.sendMessage2 = function (id, message) {
-    var chat = WAPI.getChat(id);
-    if (chat !== undefined) {
-        try {
-                chat.sendMessage(message);
-            return true;
-        } catch (error) {
-            return false;
-        }
-    }
-    return false;
-};
 
 window.WAPI.sendSeen = async function (id) {
     if (!id) return false;
@@ -904,8 +894,8 @@ function isChatMessage(message) {
 }
 
 window.WAPI.setPresence = function (available) {
-    if(available)Store.Presence.setPresenceAvailable();
-    else Store.Presence.setPresenceUnavailable();
+    if(available)Store._Presence.setPresenceAvailable();
+    else Store._Presence.setPresenceUnavailable();
 }
 
 window.WAPI.getUnreadMessages = function (includeMe, includeNotifications, use_unread_count) {
@@ -1356,6 +1346,42 @@ window.WAPI.onPlugged = function(callback) {
 }
 
 /**
+ * A new approach to listening to add and remove events from groups. This takes only a callback and is prevents memory leaks
+ */
+WAPI.onGlobalParicipantsChanged = function(callback) {
+    const events = [
+        'change:isAdmin',
+        'remove',
+        'add'
+    ]
+    //const id = eventName.replace('group_participant_change','');
+    const chats = Store.GroupMetadata.models
+        //.filter(group=>group.participants.models.find(participant=>participant.id._serialized===id))
+        .filter(x => x.id.server !== 'broadcast').map(group => window.Store.Chat.get(group.id._serialized));
+    const cb = (eventName, eventData, extra) => {
+        if (events.includes(eventName)) {
+            let action = eventName;
+            if (eventName == 'change:isAdmin') {
+                action = extra ? 'promote' : 'demote';
+            }
+            callback({
+                by: undefined,
+                action: action,
+                who: eventData.id._serialized,
+                chat: extra.parent.id._serialized
+            });
+            chats.map(chat => {
+                chat.groupMetadata.participants.off('all', cb)
+                chat.groupMetadata.participants.off(cb)
+            });
+        }
+    }
+    chats.map(chat => chat.groupMetadata.participants.on('all', cb));
+    Store.GroupMetadata.on('all', (eventName, groupId) => chats.map(chat => chat.groupMetadata.participants.on('all', cb)))
+    return true;
+}
+
+/**
  * Registers a callback to participant changes on a certain, specific group
  * @param groupId - string - The id of the group that you want to attach the callback to.
  * @param callback - function - Callback function to be called when a message acknowledgement changes. The callback returns 3 variables
@@ -1667,7 +1693,7 @@ window.WAPI.sendImageWithProduct = async function (imgBase64, chatid, caption, b
 window.WAPI.base64ImageToFile = function (b64Data, filename) {
     var arr = b64Data.split(',');
     var mime = arr[0].match(/:(.*?);/)[1];
-    var bstr = Base64 ? Base64.atob(arr[1]) : atob(arr[1]);
+    var bstr = window.Base64 ? window.Base64.atob(arr[1]) : atob(arr[1]);
     var n = bstr.length;
     var u8arr = new Uint8Array(n);
 
@@ -1789,6 +1815,7 @@ window.WAPI.simulateTyping = async function (chatId, on) {
  * @param {string} loc Text to go with the location message
  */
 window.WAPI.sendLocation = async function (chatId, lat, lng, loc) {
+    loc = loc || '';
     var chat = Store.Chat.get(chatId);
     if(!chat) return false;
     var tempMsg = Object.create(Store.Msg.models.filter(msg => msg.__x_isSentByMe && !msg.quotedMsg)[0]);
@@ -1822,7 +1849,7 @@ window.WAPI.sendLocation = async function (chatId, lat, lng, loc) {
         isQuotedMsgAvailable: false
     };
     Object.assign(tempMsg, extend);
-    return await Promise.all(Store.addAndSendMsgToChat(chat, tempMsg))
+    return (await Promise.all(Store.addAndSendMsgToChat(chat, tempMsg)))[1]==='success' ? newId._serialized : false;
 };
 
 /**
@@ -2170,6 +2197,10 @@ window.WAPI.cutMsgCache = function (){
     return true;
 }
 
+window.WAPI.getHostNumber = function() {
+    return WAPI.getMe().me.user;
+}
+
 //All of the following features can be unlocked using a license key: https://github.com/open-wa/wa-automate-nodejs#license-key
 window.WAPI.getStoryStatusByTimeStamp = function(){return false;}
 window.WAPI.deleteAllStatus = function(){return false;}
@@ -2195,3 +2226,35 @@ window.WAPI.quickClean = function (ob) {return JSON.parse(JSON.stringify(ob))};
 window.WAPI.pyFunc = async function (fn, done) {
     return done(await fn())
 }
+
+/**
+ * If you're using WAPI.js outside of open-wa: https://github.com/open-wa/wa-automate-nodejs/ then you can use the following code to enable the locked features above if you've got a license keu.
+ *
+ * THIS WILL NOT WORK OUT OF THE BOX. YOU WILL NEED TO DISAVLE CONTENT SECURITY POLICY (WHICH IS HIGHLY DISCOURAGED AND THE MAINTAINERS OF THIS CODE ASSUME NO RESPONSIBILITY FOR AY SECURITY VUNERABILITIES RESULTING IN DISABLING CSP)
+ *
+ * This is meant to act as an example of how to enable new features in wapi.js. You should implement this outside of the WA WEB browser context.
+ *
+ * Please use google to find out how to disable CSP. You can also use this extension: https://chrome.google.com/webstore/detail/disable-content-security/ieelmcmcagommplceebfedjlakkhpden/related?hl=en
+ */
+window.WAPI.addLicenseKey = async function (key){
+    const pkgR =  await fetch('https://raw.githubusercontent.com/open-wa/wa-automate-nodejs/master/package.json');
+    const pkg = await pkgR.json();
+    const body = JSON.stringify({
+            number: Store.Me.me._serialized,
+            key
+        });
+    const r = await fetch(pkg.licenseCheckUrl, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-cache',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin',
+        redirect: 'follow',
+        referrerPolicy: 'no-referrer',
+        body
+      })
+      const x = await r.text()
+      return eval(x);
+    }
