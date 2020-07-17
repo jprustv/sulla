@@ -469,6 +469,10 @@ window.WAPI.getGroupInviteLink = async function (chatId) {
     return `https://chat.whatsapp.com/${chat.inviteCode}`
 }
 
+window.WAPI.inviteInfo = async function(link){
+    return await Store.WapQuery.groupInviteInfo(link.split('\/').pop()).then(r=>r.status===200?WAPI.quickClean(r):r.status);
+}
+
 window.WAPI.getNewId = function () {
     var text = "";
     var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -653,6 +657,10 @@ window.WAPI.getGroupAdmins = async function (id) {
         .map((admin) => admin.id._serialized);
 };
 
+WAPI.iAmAdmin = async function(){
+    return (await Promise.all(Store.GroupMetadata.models.map(({id})=>Store.GroupMetadata.find(id)))).filter(({participants})=>participants.iAmAdmin()||participants.iAmSuperAdmin()).map(({id})=>id._serialized);
+}
+
 /**
  * Returns an object with all of your host device details
  */
@@ -695,22 +703,12 @@ window.WAPI.processMessageObj = function (messageObj, includeMe, includeNotifica
     return;
 };
 
-window.WAPI.getAllMessagesInChat = function (id, includeMe, includeNotifications) {
+window.WAPI.getAllMessagesInChat = function (id, includeMe = false, includeNotifications = false, clean = false) {
     const chat = WAPI.getChat(id);
-    let output = [];
-    const messages = chat.msgs._models;
-
-    for (const i in messages) {
-        if (i === "remove") {
-            continue;
-        }
-        const messageObj = messages[i];
-
-        let message = WAPI.processMessageObj(messageObj, includeMe, includeNotifications)
-        if (message)
-            output.push(message);
-    }
-    return WAPI.quickClean(output);
+    let output = chat.msgs._models || [];
+    if(!includeMe) output =  output.filter(m=> !m.id.fromMe)
+    if(!includeNotifications) output = output.filter(m=> !m.isNotification)
+    return (clean ? output.map(WAPI.quickClean) : output.map(WAPI._serializeMessageObj)) || [];
 };
 
 window.WAPI.loadAndGetAllMessagesInChat = function (id, includeMe, includeNotifications) {
@@ -845,12 +843,12 @@ window.WAPI.sendMessageReturnId = async function (ch, body) {
 
 
 window.WAPI.sendMessage = async function (id, message) {
-    if(id==='status@broadcast') return false;
+    if(id==='status@broadcast') return 'Not able to send message to broadcast';
     let chat = WAPI.getChat(id);
-    if(!chat && !id.includes('g')) {
+    if((!chat && !id.includes('g') || chat.msgs.models.length == 0)) {
         var contact = WAPI.getContact(id)
-        if(!contact) return false;
-        await Store.Chat.find(contact.id)
+        if(!contact || !contact.isMyContact) return 'Not a contact';
+        await Store.Chat.find(Store.Contact.get(id).id)
         chat = WAPI.getChat(id);
     }
     if (chat !== undefined) {
@@ -1196,7 +1194,7 @@ window._WAPI._newMessagesListener = window.Store.Msg.on('add', (newMessage) => {
 
                 window._WAPI._newMessagesCallbacks.forEach(function (callbackObj) {
                     if (callbackObj.callback !== undefined) {
-                        callbackObj.callback(queuedMessages);
+                        callbackObj.callback(JSON.parse(JSON.stringify(queuedMessages)));
                     }
                     if (callbackObj.rmAfterUse === true) {
                         removeCallbacks.push(callbackObj);
@@ -1246,7 +1244,7 @@ window.WAPI.waitNewMessages = function (rmCallbackAfterUse = true, callback) {
 };
 
 
-window.WAPI.addAllNewMessagesListener = callback => window.Store.Msg.on('add', (newMessage) => {
+window.WAPI.onAnyMessage = callback => window.Store.Msg.on('add', (newMessage) => {
     if (newMessage && newMessage.isNewMsg) {
     if(!newMessage.clientUrl && (newMessage.mediaKeyTimestamp || newMessage.filehash)){
         const cb = (msg) => {
@@ -1257,7 +1255,8 @@ window.WAPI.addAllNewMessagesListener = callback => window.Store.Msg.on('add', (
         };
         Store.Msg.on('change:isUnsentMedia',cb);
     } else {
-        let message = window.WAPI.processMessageObj(newMessage, true, false);
+        let pm = window.WAPI.processMessageObj(newMessage, true, true);
+        let message = pm? JSON.parse(JSON.stringify(pm)) : WAPI.quickClean(newMessage.attributes);
         if (message) {
             callback(message)
         }
@@ -1270,8 +1269,27 @@ window.WAPI.addAllNewMessagesListener = callback => window.Store.Msg.on('add', (
  * @returns {boolean}
  */
 window.WAPI.onStateChanged = function (callback) {
-    window.Store.State.default.on('change:state', callback)
+    window.Store.State.default.on('change:state', ({state})=>callback(state))
     return true;
+}
+
+/**
+ * Returns the current state of the session. Possible state values:
+ * "CONFLICT"
+ * "CONNECTED"
+ * "DEPRECATED_VERSION"
+ * "OPENING"
+ * "PAIRING"
+ * "PROXYBLOCK"
+ * "SMB_TOS_BLOCK"
+ * "TIMEOUT"
+ * "TOS_BLOCK"
+ * "UNLAUNCHED"
+ * "UNPAIRED"
+ * "UNPAIRED_IDLE"
+ */
+window.WAPI.getState = function (){
+    return Store.State.default.state;
 }
 
 /**
@@ -1303,8 +1321,8 @@ window.WAPI.addOrRemoveLabels = async function (label, objectId, type) {
  * @param callback - function - Callback function to be called when a message acknowledgement changes.
  * @returns {boolean}
  */
-window.WAPI.waitNewAcknowledgements = function (callback) {
-    Store.Msg.on("change:ack", callback);
+window.WAPI.onAck = function (callback) {
+    Store.Msg.on("change:ack", m=>callback(WAPI.quickClean(m)));
     return true;
 }
 
@@ -1520,6 +1538,7 @@ window.WAPI.getBufferedNewMessages = function () {
  * @returns Promise<string | boolean> Either false if it didn't work, or the group id.
  */
 window.WAPI.joinGroupViaLink = async function(link){
+    return await Store.WapQuery.acceptGroupInvite(link.split('\/').pop()).then(res=>res.status===200?res.gid._serialized:res.status);
     let code = link;
     //is it a link? if not, assume it's a code, otherwise, process the link to get the code.
     if(link.includes('chat.whatsapp.com')) {
@@ -1626,11 +1645,15 @@ window.WAPI.refreshBusinessProfileProducts = async function (){
  * @returns None
  */
 window.WAPI.getBusinessProfilesProducts = async function (id) {
-    await WAPI.refreshBusinessProfileProducts();
-    if(!Store.Catalog.get(id)) await Store.Catalog.findCarouselCatalog(id)
-    const catalog = Store.Catalog.get(id);
-    if (catalog.productCollection && catalog.productCollection._models.length)
-    return catalog.productCollection._models;
+    try{
+        if(!Store.Catalog.get(id)) await Store.Catalog.findCarouselCatalog(id)
+        const catalog = Store.Catalog.get(id);
+        if (catalog.productCollection && catalog.productCollection._models.length)
+        return JSON.parse(JSON.stringify(catalog.productCollection._models));
+        else return [];
+    } catch(error){
+        return false;
+    }
 };
 
 
@@ -2192,6 +2215,10 @@ window.WAPI.getUseHereString = async function() {
     return Store.Msg.models.length;
 }
 
+WAPI.getChatWithNonContacts = async function(){
+    return Store.Chat.models.map(chat=>chat.contact && !chat.contact.isMyContact ?chat.contact :null).filter(x=>x && !x.isGroup).map(WAPI._serializeContactObj)
+}
+
 window.WAPI.cutMsgCache = function (){
     Store.Msg.models.map(msg=>Store.Msg.remove(msg));
     return true;
@@ -2220,8 +2247,18 @@ window.WAPI.setChatBackgroundColourHex = function(){return false;}
 window.WAPI.darkMode = function(){return false;}
 window.WAPI.onChatOpened = function(){return false;}
 window.WAPI.onStory = function(){return false;}
+window.WAPI.getStoryViewers = function(){return false;}
+window.WAPI.onChatState = function(){return false;}
 
-window.WAPI.quickClean = function (ob) {return JSON.parse(JSON.stringify(ob))};
+window.WAPI.quickClean = function (ob) {
+    var r = JSON.parse(JSON.stringify(ob));
+    if(r.mediaData && Object.keys(r.mediaData).length==0) delete r.mediaData;
+    if(r.chat && Object.keys(r.chat).length==0) delete r.chat;
+    Object.keys(r).filter(k=>r[k]==""||r[k]==[]||r[k]=={}||r[k]==null).forEach(k=>delete r[k]);
+    Object.keys(r).filter(k=>r[k]?r[k]._serialized:false).forEach(k=>r[k]=r[k]._serialized);
+    Object.keys(r).filter(k=>r[k]?r[k].id:false).forEach(k=>r[k]=r[k].id);
+    return r;
+};
 
 window.WAPI.pyFunc = async function (fn, done) {
     return done(await fn())

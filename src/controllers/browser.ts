@@ -39,7 +39,7 @@ export async function initClient(sessionId?: string, config?:ConfigObject, custo
   }
   );
   //check if [session].json exists in __dirname
-  const sessionjsonpath = path.join(path.resolve(process.cwd(),config?.sessionDataPath || ''), `${sessionId || 'session'}.data.json`);
+  const sessionjsonpath = (config?.sessionDataPath && config?.sessionDataPath.includes('.data.json')) ? path.join(path.resolve(process.cwd(),config?.sessionDataPath || '')) : path.join(path.resolve(process.cwd(),config?.sessionDataPath || ''), `${sessionId || 'session'}.data.json`);
   let sessionjson = process.env[`${sessionId.toUpperCase()}_DATA_JSON`] ? JSON.parse(process.env[`${sessionId.toUpperCase()}_DATA_JSON`]) : config?.sessionData;
   if (fs.existsSync(sessionjsonpath)) sessionjson = JSON.parse(fs.readFileSync(sessionjsonpath));
   if(sessionjson) await waPage.evaluateOnNewDocument(
@@ -55,9 +55,6 @@ export async function initClient(sessionId?: string, config?:ConfigObject, custo
 export async function injectApi(page: Page) {
   await page.addScriptTag({
     path: require.resolve(path.join(__dirname, '../lib', 'wapi.js'))
-  });
-  await page.addScriptTag({
-    path: require.resolve(path.join(__dirname, '../lib', 'middleware.js'))
   });
   await page.addScriptTag({
     path: require.resolve(path.join(__dirname, '../lib', 'axios.min.js'))

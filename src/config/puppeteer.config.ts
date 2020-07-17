@@ -38,11 +38,16 @@ const puppeteerConfig = {
     '--disable-accelerated-mjpeg-decode',
     '--disable-app-list-dismiss-on-blur',
     '--disable-accelerated-video-decode',
-    '--disable-dev-shm-usage'
+    '--disable-dev-shm-usage',
+    //suggested in #563
+    // '--single-process',
+    // '--no-zygote',
+    // '--renderer-process-limit=1',
+    // '--no-first-run'
   ]
 };
 
-export const useragent = 'WhatsApp/2.2019.8 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36';
+export const useragent = 'WhatsApp/2.2029.4 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36';
 export const createUserAgent = (waVersion:string) => `WhatsApp/${waVersion} Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36`;
 export { puppeteerConfig };
 

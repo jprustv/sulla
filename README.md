@@ -3,9 +3,9 @@
 
 # wa-automate-nodejs
 
-> wa-automate-nodejs is the most advanced NodeJS library which provides a high-level API control to WA.
+> wa-automate-nodejs is the most advanced NodeJS library which provides a high-level API to control WA.
 >
-> It is built using [puppeteer](https://github.com/GoogleChrome/puppeteer), based on [this python wrapper](https://github.com/mukulhase/WebWhatsapp-Wrapper).
+>
 
 [![npm version](https://img.shields.io/npm/v/@open-wa/wa-automate.svg?color=green)](https://www.npmjs.com/package/@open-wa/wa-automate)
 ![node](https://img.shields.io/node/v/@open-wa/wa-automate)
@@ -13,7 +13,7 @@
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/open-wa/wa-automate-nodejs.svg)](http://isitmaintained.com/project/open-wa/wa-automate-nodejs "Average time to resolve an issue")
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/open-wa/wa-automate-nodejs.svg)](http://isitmaintained.com/project/open-wa/wa-automate-nodejs "Percentage of issues still open")
 
-<a href="https://discord.gg/dnpp72a"><img src="https://img.shields.io/discord/661438166758195211?color=blueviolet&label=discord&style=flat" /></a> ![WhatsApp_Web 2.2023.2](https://img.shields.io/badge/WhatsApp_Web-2.2023.2-brightgreen.svg)
+<a href="https://discord.gg/dnpp72a"><img src="https://img.shields.io/discord/661438166758195211?color=blueviolet&label=discord&style=flat" /></a> ![WhatsApp_Web 2.2029.4](https://img.shields.io/badge/WhatsApp_Web-2.2029.4-brightgreen.svg)
 
 [![Buy me a coffee][buymeacoffee-shield]][buymeacoffee]
 [![Consulting Request][consult-shield]][consult]
@@ -104,6 +104,7 @@ open-wa is at the forefront of open source WA developmentand runs on donations f
 | [`clearAllChats`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#clearAllChats)                   | Easily clear memory by clearing all chats of all messages on the host device and WA Web           |
 | [`sendReplyWithMentions`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#sendReplyWithMentions)                   | Send a reply to a message with mentions           |
 | [`onChatOpened`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#onChatOpened)                   | Detect when a chat is selected in the UI           |
+| [`onChatState`](https://open-wa.github.io/wa-automate-nodejs/classes/client.html#onChatState)                   | Detect when someone is typing or recording a voicenote           |
 
 [Learn more about license keys.](https://github.com/open-wa/wa-automate-nodejs#license-key)
 
@@ -127,7 +128,7 @@ There are 3 ways to start a chat with a new number:
 
 For now the process happens through [Gumroad](https://gumroad.com/l/BTMt)
 
-How to get an License key:
+How to get a License key:
 
 1. Go to [Gumroad](https://gumroad.com/l/BTMt).
 2. Click on the type of license you require.
