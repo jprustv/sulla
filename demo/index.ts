@@ -2,6 +2,7 @@
 // var create = require("@open-wa/wa-automate").create;
 // import { create, Client, decryptMedia, ev } from '../dist/index';
 import { create, Client, decryptMedia, ev, smartUserAgent } from '../src/index';
+import { NotificationLanguage } from '../src/api/model';
 const mime = require('mime-types');
 const fs = require('fs');
 const uaOverride = 'WhatsApp/2.16.352 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Safari/605.1.15';
@@ -37,6 +38,12 @@ ev.on('**', async (data,sessionId,namespace) => {
 })
 
 ev.on('sessionData.**', async (sessionData, sessionId) =>{
+  console.log("\n----------")
+  console.log('sessionData',sessionId, sessionData)
+  console.log("----------")
+})
+
+ev.on('sessionDataBase64.**', async (sessionData, sessionId) =>{
   console.log("\n----------")
   console.log('sessionData',sessionId, sessionData)
   console.log("----------")
@@ -98,8 +105,16 @@ app.listen(PORT, function () {
     console.log(message.body, message.id, message?.quotedMsgObj?.id);
     if (message.mimetype) {
       const filename = `${message.t}.${mime.extension(message.mimetype)}`;
-      const mediaData = await decryptMedia(message, uaOverride);
 
+      // if it is a sticker, you need to run this.
+      let mediaData;
+      if( message.type==='sticker') {
+        //getStickerDecryptable is an insiders feature! 
+        let stickerDecryptable = await client.getStickerDecryptable(message.id);
+        if(stickerDecryptable) mediaData = await decryptMedia(stickerDecryptable, uaOverride);
+      } else {
+        mediaData = await decryptMedia(message, uaOverride);
+      }
       // you can send a file also with sendImage or await client.sendFile
       // await client.sendImage(
       //   message.from,
@@ -164,7 +179,7 @@ app.listen(PORT, function () {
  * and you can AND SHOULD override the user agent.
  */
 create({
-  sessionId:'session1',
+  sessionId:'customer-support',
   // executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   useChrome: true,
   restartOnCrash: start,
@@ -175,7 +190,9 @@ create({
   killProcessOnBrowserClose: true,
   autoRefresh:true, //default to true
   qrRefreshS:15, //please note that if this is too long then your qr code scan may end up being invalid. Generally qr codes expire every 15 seconds.
-  safeMode: true
+  safeMode: true,
+  hostNotificationLang: NotificationLanguage.PTBR,
+  licenseKey: '451030FF-881C4166-A9169952-2E56748C'
   // cacheEnabled:false,
   // devtools:true,
   //OR

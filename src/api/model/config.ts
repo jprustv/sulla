@@ -1,3 +1,4 @@
+import { Base64 } from "./aliases";
 
 /**
  * The different types of qr code output.
@@ -6,6 +7,18 @@ export enum QRFormat{
     PNG = 'png',
     JPEG = 'jpeg',
     WEBM = 'webm'
+  }
+
+  /**
+   * The available languages for the host security notification
+   */
+  export enum NotificationLanguage {
+      PTBR = 'pt-br',
+      ENGB = 'en-gb',
+      DEDE = 'de-de',
+      IDID = 'id-id',
+      ITIT = 'it-it',
+      ES = 'es',
   }
   
   /**
@@ -44,6 +57,10 @@ export interface DevTools {
 
 export interface ProxyServerCredentials {
     /**
+     * The protocol on which the proxy is running. E.g http, https, socks4 or socks5. This is optional and can be automatically determined from the address.
+     */
+    protocol?: string;
+    /**
     * Proxy Server address. This can include the port e.g '127.0.0.1:5005'
     */
     address: string,
@@ -59,13 +76,21 @@ export interface ProxyServerCredentials {
     
 export interface ConfigObject {
     /**
-     * JSON object that is required to migrate a session from one instance to another or ot just restart an existing instance.
-     * This sessionData is provided in a generated JSON file upon QR scan or an event.
+     * The authentication object (as a JSON object or a base64 encoded string) that is required to migrate a session from one instance to another or to just restart an existing instance.
+     * This sessionData is provided in a generated JSON file (it's a json file but contains the JSON data as a base64 encoded string) upon QR scan or an event.
+     * 
      * You can capture the event like so:
      * ```javascript
      * import {create, ev} from '@open-wa/wa-automate';
-     * ev.on('sessionData.**', async (sessionData, sessionId) =>{
+     * 
+     *      ev.on('sessionData.**', async (sessionData, sessionId) =>{
      *          console.log(sessionId, sessionData)
+     *      })
+     * 
+     * //or as base64 encoded string
+     * 
+     *      ev.on('sessionDataBase64.**', async (sessionDatastring, sessionId) =>{
+     *          console.log(sessionId, sessionDatastring)
      *      })
      * ```
      *  NOTE: You can set sessionData as an evironmental variable also! The variable name has to be [sessionId (default = 'session) in all caps]_DATA_JSON. You have to make sure to surround your session data with single quotes to maintain the formatting.
@@ -78,11 +103,11 @@ export interface ConfigObject {
      * ```bash
      *    export SESSION_DATA_JSON=`...`
      * ```
-     * where ... is copied from session.data.json
-     * Again - YOU NEED THE ' as it maintains the formatting from the json file. Otherwise it will not work.
+     * where ... is copied from session.data.json this will be a string most likley starting in `ey...` and ending with `==`
+     * 
      * Setting the sessionData in the environmental variable will override the sessionData object in the config.
      */
-    sessionData ?: SessionData,
+    sessionData ?: SessionData | Base64,
     /**
      * ALPHA EXPERIMENTAL FEATURE! DO NOT USE IN PRODUCTION, REQUIRES TESTING.
      * 
@@ -95,6 +120,7 @@ export interface ConfigObject {
     browserWSEndpoint ?: string,
     /**
      * This flag allows you to disable or enable the use of the puppeteer stealth plugin. It is a good idea to use it, however it can cause issues sometimes. Set this to false if you are experiencing `browser.setMaxListeneres` issue. For now the default for this is false.
+     * @default `false`
      */
     useStealth ?: boolean,
     /**
@@ -102,7 +128,8 @@ export interface ConfigObject {
      */
     sessionDataPath ?: string,
     /**
-     * Disable cors see: https://pptr.dev/#?product=Puppeteer&version=v3.0.4&show=api-pagesetbypasscspenabled If you are having an issue with sending media try to set this to true. Otherwise leave it set to falsedefualt to false
+     * Disable cors see: https://pptr.dev/#?product=Puppeteer&version=v3.0.4&show=api-pagesetbypasscspenabled If you are having an issue with sending media try to set this to true. Otherwise leave it set to false.
+     * @default `false`
      */
     bypassCSP ?: boolean,
     /**
@@ -112,16 +139,17 @@ export interface ConfigObject {
     chromiumArgs ?: string[],
     /**
      * If set to true, skipBrokenMethodsCheck will bypass the health check before startup. It is highly suggested to not set this to true.
-     * Default: false
+     * @default `false`
      */
     skipBrokenMethodsCheck ?: boolean,
     /**
      * This is the name of the session. You have to make sure that this is unique for every session.
+     * @default `session`
      */
     sessionId ?: string,
     /**
-     * In order to unlock the functionality to send texts to unknown numbers, you need an License key.
-     * One License Key is valid for each number. Each License Key is £10 per month or £100 per year.
+     * In order to unlock the functionality to send texts to unknown numbers, you need a License key.
+     * One License Key is valid for each number. Each License Key starts from £5 per month.
      * 
      * Please check README for instructions on how to get a license key.
      * 
@@ -140,11 +168,13 @@ export interface ConfigObject {
      */
     devtools ?: boolean | DevTools,
     /**
-     * Setting this to true will block any network calls to crash log servers. This should keep anything you do under the radar. default is true
+     * Setting this to true will block any network calls to crash log servers. This should keep anything you do under the radar. 
+     * @default `true`
      */
     blockCrashLogs ?: boolean,
     /**
      * Setting this to false turn off the cache. This may improve memory usage.
+     * @default `false`
      */
     cacheEnabled ?: boolean,
     /**
@@ -161,14 +191,16 @@ export interface ConfigObject {
     throwErrorOnTosBlock ?: boolean,
     /**
      * By default, all instances of @open-wa/wa-automate are headless (i.e you don't see a chrome window open), you can set this to false to show the chrome/chromium window.
+     * @default `true`
      */
     headless ?: boolean,
     /**
      * Setting this to true will result in new QR codes being generated if the end user takes too long to scan the QR code.
+     * @default false
      */
     autoRefresh ?: boolean,
     /**
-     * This determines the interval at which to refresh the QR code.
+     * This determines the interval at which to refresh the QR code. By default, WA updates the qr code every 18-19 seconds so make sure this value is set to UNDER 18 seconds!!
      */
     qrRefreshS ?: number,
     /**
@@ -176,19 +208,21 @@ export interface ConfigObject {
      */
     qrTimeout ?: number,
     /**
-     * Some features, like video upload, do not work without a chrome instance. Puppeteer only provides a chromium instance out of the box. Set this to the path of your chrome instance or you can use `useChrome:true` to automatically detect a chrome instance for you.
+     * Some features, like video upload, do not work without a chrome instance. Set this to the path of your chrome instance or you can use `useChrome:true` to automatically detect a chrome instance for you. Please note, this overrides `useChrome`.
      */
     executablePath ?: string,
     /**
-     * If true, the program will automatically try to detect the instance of chorme on the machine. Please note this overrides executablePath.
+     * If true, the program will automatically try to detect the instance of chorme on the machine. Please note this DOES NOT override executablePath.
+     * @default `false`
      */
     useChrome ?: boolean,
     /**
-     * If sent, adds a call to waPage.authenticate with those credentials.
+     * If sent, adds a call to waPage.authenticate with those credentials. Set `corsFix` to true if using a proxy results in CORS errors.
      */
     proxyServerCredentials?: ProxyServerCredentials,
     /**
-     * If true, skips logging the QR Code to the console. Default is false.
+     * If true, skips logging the QR Code to the console. 
+     * @default `false`
      */
     qrLogSkip?: boolean;
     /**
@@ -206,14 +240,17 @@ export interface ConfigObject {
     restartOnCrash ?: any,
     /**
      * Setting this to true will simplify logs for use within docker containers by disabling spins (will still print raw messages).
+     * @default `false`
      */
     disableSpins ?: boolean,
     /**
      * If true, this will log any console messages from the browser.
+     * @default `false`
      */
     logConsole ?: boolean
     /**
      * If true, this will log any error messages from the browser instance
+     * @default `false`
      */
     logConsoleErrors ?: boolean,
     /**
@@ -221,28 +258,44 @@ export interface ConfigObject {
     */
     authTimeout?: number;
     /**
-     * Setting this to `true` will kill the whole process when the client is disconnected from the page or if the browser is closed. defaults to `false`
+     * Setting this to `true` will kill the whole process when the client is disconnected from the page or if the browser is closed. 
+     * @default `false`
      */
     killProcessOnBrowserClose ?: boolean;
     /**
      * If true, client will check if the page is valid before each command. If page is not valid, it will throw an error.
+     * @default `false`
      */
     safeMode ?: boolean;
     /**
      * If true, the process will not save a data.json file. This means that sessions will not be saved and you will need to pass sessionData as a config param or create the session data.json file yourself
+     * @default `false`
      */
     skipSessionSave ?: boolean;
     /**
      * If true, the process will open a browser window where you will see basic event logs and QR codes to authenticate the session. Usually it will open on port 3000. It can also be set to a preferred port.
+     * 
+     * You can also get the QR code png at (if localhost and port 3000):
+     * 
+     * `http://localhost:3000/qr`
+     * 
+     * or if you have multiple session:
+     * 
+     *  `http://localhost:3000/qr?sessionId=[sessionId]`
+     * 
+     * @default `false | 3000`
      */
     popup ?: boolean | number;
     /**
      * If true, the process will try infer as many config variables as possible from the environment variables. The format of the variables are as below:
      * ```
+     * sessionData     ==>     WA_SESSION_DATA
      * sessionDataPath ==>     WA_SESSION_DATA_PATH
      * sessionId       ==>     WA_SESSION_ID
      * customUserAgent ==>     WA_CUSTOM_USER_AGENT
      * blockCrashLogs  ==>     WA_BLOCK_CRASH_LOGS
+     * blockAssets     ==>     WA_BLOCK_ASSETS
+     * corsFix         ==>     WA_CORS_FIX
      * cacheEnabled    ==>     WA_CACHE_ENABLED
      * headless        ==>     WA_HEADLESS
      * autoRefresh     ==>     WA_AUTO_REFRESH
@@ -258,16 +311,34 @@ export interface ConfigObject {
      * skipSessionSave ==>     WA_SKIP_SESSION_SAVE
      * popup           ==>     WA_POPUP 
      * ```
+     * @default `false`
      */
     inDocker ?: boolean;
     /**
-     * The output quality of the qr code during authentication. This can be any increment of 0.1 from 0.1 to 1.0. defaults to 1.0
+     * The output quality of the qr code during authentication. This can be any increment of 0.1 from 0.1 to 1.0.
+     * @default `1.0`
      */
     qrQuality ?: QRQuality;
     /**
-     * The output format of the qr code. `png`, `jpeg` or `webm`. Defaults to `png`
+     * The output format of the qr code. `png`, `jpeg` or `webm`.
+     *  
+     * @default `png`
      */
-    qrFormat ?:  QRFormat
-    // @private
+    qrFormat ?:  QRFormat;
+    /**
+     * The language of the host notification. See: https://github.com/open-wa/wa-automate-nodejs/issues/709#issuecomment-673419088
+     */
+    hostNotificationLang ?: NotificationLanguage;
+    /**
+     * Setting this to true will block all assets from loading onto the page. This may result in some load time impreovements but also increases instability. 
+     * @default `false`
+     */
+    blockAssets ?: boolean;
+    /**
+     * Setting this to true will bypass web security. DO NOT DO THIS IF YOU DO NOT HAVE TO. CORS issue may arise when using a proxy.
+     * @default `false`
+     */
+    corsFix ?: boolean
+    /**@internal */
     [x: string]: any 
 }

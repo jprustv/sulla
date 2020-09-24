@@ -2,7 +2,8 @@ var fs = require('fs');
 import {TypescriptParser} from "typescript-parser"
 var parser = new TypescriptParser();
 import {noCase} from "change-case";
-const path = require("path");
+const path = require("path"),
+parseUrl = require("parse-url")
 
 var aliasExamples = {
     "ChatId": "00000000000@c.us or 00000000000-111111111@g.us",
@@ -23,7 +24,14 @@ var primatives = [
     'boolean'
 ];
 export const generatePostmanJson = async function (setup : any = {}) {
-    const data = fs.readFileSync(path.resolve(__dirname,'../api/Client.ts'), 'utf8');
+    if(setup?.apiHost) {
+        if(setup.apiHost.includes(setup.sessionId)){
+        const parsed = parseUrl(setup.apiHost);
+        setup.host = parsed.resource
+        setup.port = parsed.port;
+        }
+    }
+    const data = fs.readFileSync(path.resolve(__dirname,'../api/_client_ts'), 'utf8');
     const parsed = await parser.parseSource(data);
     //@ts-ignore
     let x = parsed.declarations.find(({name})=>name==='Client').methods.filter(({visibility})=>visibility==2).filter(({name})=>!name.startsWith('on'));
@@ -32,7 +40,7 @@ export const generatePostmanJson = async function (setup : any = {}) {
     let d = JSON.stringify(x);
     let postmanWrap = postmanWrapGen(setup);
     let res = postmanWrap(pm);
-    fs.writeFileSync('./open-wa.postman_collection.json', JSON.stringify(res));
+    if(!(setup?.skipSavePostmanCollection)) fs.writeFileSync(`./open-wa-${setup.sessionId}.postman_collection.json`, JSON.stringify(res));
     return res;
 };
 
@@ -57,12 +65,15 @@ const postmanRequestGeneratorGenerator = function (setup) { return function (met
         args[param.name] = aliasExamples[param.type] ? aliasExamples[param.type] : paramNameExamples[param.name] ? paramNameExamples[param.name] : primatives.includes(param.type) ? param.type : 'Check documentation in description';
     });
     const url = {
-        "raw": (setup === null || setup === void 0 ? void 0 : setup.useSessionIdInPath) ? "{{address}}:{{port}}/{{sessionId}}/" + method.name : "{{address}}:{{port}}/" + method.name,
+        "raw": setup.apiHost ? `{{address}}:{{port}}/${parseUrl(setup.apiHost).pathname.substring(1)}/${method.name}` : (setup === null || setup === void 0 ? void 0 : setup.useSessionIdInPath) ? "{{address}}:{{port}}/{{sessionId}}/" + method.name : "{{address}}:{{port}}/" + method.name,
         "host": [
             "{{address}}"
         ],
         "port": "{{port}}",
-        "path": (setup === null || setup === void 0 ? void 0 : setup.useSessionIdInPath) ? [
+        "path": setup?.apiHost ? [
+            parseUrl(setup.apiHost).pathname.substring(1),
+            "" + method.name
+        ] : (setup === null || setup === void 0 ? void 0 : setup.useSessionIdInPath) ? [
             "{{sessionId}}",
             "" + method.name
         ] : ["" + method.name]
@@ -133,7 +144,7 @@ var postmanWrapGen = function (setup) { return function (item) {
     return {
         "info": {
             "_postman_id": "0df31aa3-b3ce-4f20-b042-0882db0fd3a2",
-            "name": "open-wa",
+            "name": `@open-wa - ${setup.sessionId}`,
             "description": "Requests for use with open-wa",
             "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
         },

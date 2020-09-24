@@ -19,7 +19,6 @@ export const getConfigWithCase = (config ?: {
         'browserRevision',
         'useStealth',
         'chromiumArgs',
-        'browserWSEndpoint',
         'executablePath',
         'skipBrokenMethodsCheck',
         'inDocker',
@@ -28,19 +27,24 @@ export const getConfigWithCase = (config ?: {
         'killProcessOnBrowserClose'
     ]
     //only convert simple types
-    const configs = Object.keys(schema.definitions.ConfigObject.properties).map(key=>({...schema.definitions.ConfigObject.properties[key],key})).filter(({type,key})=>type&&!ignoredConfigs.includes(key));
+    // const configs = Object.keys(schema.definitions.ConfigObject.properties).map(key=>({...schema.definitions.ConfigObject.properties[key],key})).filter(({type,key})=>type&&!ignoredConfigs.includes(key));
+    const configs = Object.entries(schema.definitions.ConfigObject.properties).map(([key,entry] : any)=>{
+        if(key==='sessionData') {
+            entry.type = 'string';
+            entry.description = 'The base64 encoded sessionData used to restore a session.'
+            delete entry.anyOf;
+        }
+        return {...entry,key}
+    }).filter(({type,key})=>type&&!ignoredConfigs.includes(key));
     const configWithCases = configs.map(o=>({env:`WA_${constantCase(o.key)}`,p:paramCase(o.key),...o}))
     return configWithCases;
 }
 
-export const getConfigFromProcessEnv = (config ?: {
-    path: string,
-    tsconfig: string,
-    type: string,
-}) => {
+export const getConfigFromProcessEnv = (json) => {
     let output = {};
-    Object.keys(getConfigWithCase(config)).forEach(_env=>{
-        if(process.env[_env]) output[_env] = process.env[_env];
+    json.forEach(({env,key})=>{
+        if(process.env[env]) output[key] = process.env[env];
+        if(process.env[env]==='true' || process.env[env]==='false') output[key] = Boolean(process.env[env]);
     });
     return output;
 }

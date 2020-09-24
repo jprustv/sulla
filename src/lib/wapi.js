@@ -35,7 +35,7 @@ if (!window.Store||!window.Store.Msg) {
                 { id: "addAndSendMsgToChat", conditions: (module) => (module.addAndSendMsgToChat) ? module.addAndSendMsgToChat : null },
                 { id: "sendMsgToChat", conditions: (module) => (module.sendMsgToChat) ? module.sendMsgToChat : null },
                 { id: "Catalog", conditions: (module) => (module.Catalog) ? module.Catalog : null },
-                { id: "bp", conditions: (module) => (module.default&&module.default.toString().includes('bp_unknown_version')) ? module.default : null },
+                { id: "bp", conditions: (module) => (module.default&&module.default.toString&&module.default.toString().includes('bp_unknown_version')) ? module.default : null },
                 { id: "MsgKey", conditions: (module) => (module.default&&module.default.toString().includes('MsgKey error: obj is null/undefined')) ? module.default : null },
                 { id: "Parser", conditions: (module) => (module.convertToTextWithoutSpecialEmojis) ? module.default : null },
                 { id: "Builders", conditions: (module) => (module.TemplateMessage && module.HydratedFourRowTemplate) ? module : null },
@@ -436,7 +436,7 @@ window.WAPI.sendLinkWithAutoPreview = async function (chatId, url, text) {
         return false;
     }
     const linkPreview = await Store.WapQuery.queryLinkPreview(url);
-    return (await chatSend.sendMessage(text.includes(url) ? text : `${url}\n${text}`, {linkPreview}))=='success'
+    return (await chatSend.sendMessage(text.includes(url) ? text : `${url}\n${text}`, {linkPreview}))=='OK'
 }
 
 window.WAPI.sendMessageWithThumb = function (thumb, url, title, description, text, chatId) {
@@ -679,8 +679,8 @@ window.WAPI.isLoggedIn = function () {
 };
 
 window.WAPI.isConnected = function () {
-    // Phone Disconnected icon appears when phone is disconnected from the tnternet
-    const isConnected = document.querySelector('*[data-icon="alert-phone"]') !== null ? false : true;
+    // Phone or connection Disconnected icon appears when phone or connection is disconnected
+    const isConnected=(document.querySelector('[data-testid="alert-phone"]') == null && document.querySelector('[data-testid="alert-computer"]') == null) ? true : false;	
     return isConnected;
 };
 
@@ -1162,88 +1162,6 @@ window.WAPI.checkNumberStatus = async function (id) {
     }
 };
 
-/**
- * New messages observable functions.
- */
-window._WAPI._newMessagesQueue = [];
-window._WAPI._newMessagesBuffer = (sessionStorage.getItem('saved_msgs') != null) ? JSON.parse(sessionStorage.getItem('saved_msgs')) : [];
-window._WAPI._newMessagesDebouncer = null;
-window._WAPI._newMessagesCallbacks = [];
-
-window.Store.Msg.off('add');
-sessionStorage.removeItem('saved_msgs');
-
-window._WAPI._newMessagesListener = window.Store.Msg.on('add', (newMessage) => {
-    if (newMessage && newMessage.isNewMsg && !newMessage.isSentByMe && !newMessage.isStatusV3) {
-        let message = window.WAPI.processMessageObj(newMessage, false, false);
-        if (message) {
-            window._WAPI._newMessagesQueue.push(message);
-            window._WAPI._newMessagesBuffer.push(message);
-        }
-
-        // Starts debouncer time to don't call a callback for each message if more than one message arrives
-        // in the same second
-        if (!window._WAPI._newMessagesDebouncer && window._WAPI._newMessagesQueue.length > 0) {
-            window._WAPI._newMessagesDebouncer = setTimeout(() => {
-                let queuedMessages = window._WAPI._newMessagesQueue;
-
-                window._WAPI._newMessagesDebouncer = null;
-                window._WAPI._newMessagesQueue = [];
-
-                let removeCallbacks = [];
-
-                window._WAPI._newMessagesCallbacks.forEach(function (callbackObj) {
-                    if (callbackObj.callback !== undefined) {
-                        callbackObj.callback(JSON.parse(JSON.stringify(queuedMessages)));
-                    }
-                    if (callbackObj.rmAfterUse === true) {
-                        removeCallbacks.push(callbackObj);
-                    }
-                });
-
-                // Remove removable callbacks.
-                removeCallbacks.forEach(function (rmCallbackObj) {
-                    let callbackIndex = window._WAPI._newMessagesCallbacks.indexOf(rmCallbackObj);
-                    window._WAPI._newMessagesCallbacks.splice(callbackIndex, 1);
-                });
-            }, 1000);
-        }
-    }
-});
-
-
-
-window.WAPI._unloadInform = (event) => {
-    // Save in the buffer the ungot unreaded messages
-    window._WAPI._newMessagesBuffer.forEach((message) => {
-        Object.keys(message).forEach(key => message[key] === undefined ? delete message[key] : '');
-    });
-    sessionStorage.setItem("saved_msgs", JSON.stringify(window._WAPI._newMessagesBuffer));
-
-    // Inform callbacks that the page will be reloaded.
-    window._WAPI._newMessagesCallbacks.forEach(function (callbackObj) {
-        if (callbackObj.callback !== undefined) {
-            callbackObj.callback({ status: -1, message: 'page will be reloaded, wait and register callback again.' });
-        }
-    });
-};
-
-window.addEventListener("unload", window.WAPI._unloadInform, false);
-window.addEventListener("beforeunload", window.WAPI._unloadInform, false);
-window.addEventListener("pageunload", window.WAPI._unloadInform, false);
-
-/**
- * Registers a callback to be called when a new message arrives the WAPI.
- * @param rmCallbackAfterUse - Boolean - Specify if the callback need to be executed only once
- * @param callback - function - Callback function to be called when a new message arrives.
- * @returns {boolean}
- */
-window.WAPI.waitNewMessages = function (rmCallbackAfterUse = true, callback) {
-    window._WAPI._newMessagesCallbacks.push({ callback, rmAfterUse: rmCallbackAfterUse });
-    return true;
-};
-
-
 window.WAPI.onAnyMessage = callback => window.Store.Msg.on('add', (newMessage) => {
     if (newMessage && newMessage.isNewMsg) {
     if(!newMessage.clientUrl && (newMessage.mediaKeyTimestamp || newMessage.filehash)){
@@ -1580,11 +1498,14 @@ window.WAPI.sendImage = async function (imgBase64, chatid, filename, caption, qu
 
 /**
  * This function sts the profile name of the number.
+ * 
+ * Please note this DOES NOT WORK ON BUSINESS ACCOUNTS!
+ * 
  * @param newName - string the new name to set as profile name
  */
 window.WAPI.setMyName = async function (newName) {
-    if(!Store.Versions.default[11].BinaryProtocol) Store.Versions.default[11].BinaryProtocol=new Store.bp(11);
-    return await Store.Versions.default[11].setPushname(newName);
+    if(!Store.Versions.default[12].BinaryProtocol) Store.Versions.default[12].BinaryProtocol=new Store.bp(Store.Me.binVersion);
+    return (await Store.Versions.default[12].setPushname(newName)).status===200;
 }
 
 /** Change the icon for the group chat
@@ -2249,6 +2170,18 @@ window.WAPI.onChatOpened = function(){return false;}
 window.WAPI.onStory = function(){return false;}
 window.WAPI.getStoryViewers = function(){return false;}
 window.WAPI.onChatState = function(){return false;}
+window.WAPI.getStickerDecryptable = function(){return false;}
+window.WAPI.forceStaleMediaUpdate = function(){return false;}
+window.WAPI.setProfilePic = function(){return false;}
+window.WAPI.setGroupDescription = function(){return false;}
+window.WAPI.setGroupTitle = function(){return false;}
+window.WAPI.tagEveryone = function(){return false;}
+
+/**
+ * Patches
+ */
+window.WAPI.sendGiphyAsSticker = function(){return false;}
+window.WAPI.getBlockedIds = function(){return false;}
 
 window.WAPI.quickClean = function (ob) {
     var r = JSON.parse(JSON.stringify(ob));
