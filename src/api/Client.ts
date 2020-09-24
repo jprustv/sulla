@@ -2262,21 +2262,6 @@ public async getStatus(contactId: ContactId) {
     );
   }
 
-<<<<<<< HEAD
-=======
-  /**
-   * Send a giphy GIF as an animated sticker.
-   * @param to ChatId
-   * @param giphyMediaUrl URL | string This is the giphy media url and has to be in the format `https://media.giphy.com/media/RJKHjCAdsAfQPn03qQ/source.gif` or it can be just the id `RJKHjCAdsAfQPn03qQ`
-   */
-  public async sendGiphyAsSticker(to: ChatId, giphyMediaUrl: URL | string){
-    return await this.pup(
-      ({ to,  giphyMediaUrl}) => WAPI.sendGiphyAsSticker(to,  giphyMediaUrl),
-      { to,  giphyMediaUrl }
-    );
-  }
-  
->>>>>>> b4a5c4f5bac3f1cc0010b666769378514f0f2004
   /**
    * [REQUIRES A TEST STORY LICENSE-KEY](https://gumroad.com/l/BTMt)
    *
